@@ -18,12 +18,14 @@ const app = express();
 app.use(securityHeaders);
 
 // CORS with credentials for HTTP-only cookies
-app.use(cors({
+const corsConfig = {
   origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
-}));
+};
+app.use(cors(corsConfig));
+app.options("*", cors(corsConfig));
 
 // Cookie Parser
 app.use(cookieParser());
@@ -82,13 +84,24 @@ app.use("/api/interview", interviewRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api", dataRoutes);
 
-// Serve Frontend Static Files from root directory
+// Serve Frontend Static Files from root directory with no-cache headers
 const rootDir = path.resolve(__dirname, "..");
 if (fs.existsSync(path.join(rootDir, "index.html"))) {
-  app.use(express.static(rootDir));
+  app.use(express.static(rootDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+    }
+  }));
   app.get("*", (req, res, next) => {
     // If request does not start with /api, serve index.html
     if (!req.path.startsWith("/api")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       return res.sendFile(path.join(rootDir, "index.html"));
     }
     next();

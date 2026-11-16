@@ -105,50 +105,60 @@
 
     /* App Container */
     .app-wrapper {
-      max-width: 1080px;
+      max-width: 1240px;
+      width: 100%;
+      box-sizing: border-box;
       margin: 0 auto;
-      padding: 24px 20px 80px;
+      padding: 20px 20px 80px;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
-    /* Header Nav */
-    .app-header {
+    /* Header Nav / Navbar Container */
+    .app-header,
+    .navbar {
       position: relative;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 14px 24px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px 20px;
+      gap: 12px;
       background: var(--bg-card);
       border: 1px solid var(--border-card);
       border-radius: var(--radius-pill);
-      margin-bottom: 36px;
+      margin-bottom: 32px;
       box-shadow: var(--shadow-card);
       transition: var(--transition-standard);
+      flex-wrap: nowrap;
     }
 
     .brand-logo {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       text-decoration: none;
       color: var(--text-primary);
+      flex-shrink: 0;
     }
 
     .brand-icon-box {
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
       background: var(--color-forest);
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
     .brand-icon-box svg {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       fill: none;
       stroke: var(--text-inverse);
       stroke-width: 2.2;
@@ -158,22 +168,23 @@
 
     .brand-name {
       font-family: var(--font-heading);
-      font-size: 1.35rem;
-      font-weight: 400;
+      font-size: 1.25rem;
+      font-weight: 500;
       letter-spacing: -0.01em;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       color: var(--text-primary);
+      white-space: nowrap;
     }
 
     .brand-ai-badge {
       font-family: var(--font-main);
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      padding: 3px 8px;
+      letter-spacing: 0.1em;
+      padding: 2px 7px;
       background: rgba(162, 62, 42, 0.08);
       color: var(--color-rust);
       border: 1px solid rgba(162, 62, 42, 0.25);
@@ -183,8 +194,9 @@
     .header-status {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex-shrink: 0;
+      margin-left: auto;
     }
 
     .nav-cta {
@@ -192,12 +204,15 @@
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+      margin-right: 0;
+      padding-right: 2px;
     }
 
     .nav-cta .btn {
-      padding: 0.6rem 1.5rem;
-      font-size: 0.9rem;
+      padding: 0.52rem 1.25rem;
+      font-size: 0.88rem;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .status-pill {
@@ -2202,21 +2217,24 @@
       transform: translateY(0);
     }
 
-    .app-nav {
+    .app-nav,
+    .nav-links {
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 1.25rem;
+      flex-shrink: 1;
     }
 
     .nav-link {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
-      padding: 6px 2px;
+      padding: 6px 4px;
       transition: var(--transition-fast);
       position: relative;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .nav-link:hover {
@@ -3362,12 +3380,13 @@
       }
     }
 
-    @media (max-width: 900px) {
-      .app-nav {
-        display: none;
+    @media (max-width: 1080px) {
+      .app-nav,
+      .nav-links {
+        display: none !important;
       }
       .nav-hamburger {
-        display: inline-flex;
+        display: inline-flex !important;
       }
     }
 
@@ -3428,7 +3447,7 @@
   <div class="app-wrapper">
 
     <!-- Top Navigation Header -->
-    <header class="app-header">
+    <header class="app-header navbar">
       <a href="#home" class="brand-logo" id="headerHomeBtn" aria-label="InterviewAce AI Home">
         <div class="brand-icon-box">
           <svg viewBox="0 0 24 24">
@@ -3442,7 +3461,7 @@
       </a>
 
       <!-- Desktop Nav Links -->
-      <nav class="app-nav" id="appNav" aria-label="Main Navigation">
+      <nav class="app-nav nav-links" id="appNav" aria-label="Main Navigation">
         <a href="#home" class="nav-link active" data-page="home">Home</a>
         <a href="#practice" class="nav-link" data-page="practice">Practice</a>
         <a href="#progress" class="nav-link" data-page="progress">My Progress</a>
@@ -5822,16 +5841,7 @@
       if (errEl) errEl.style.display = "none";
       if (succEl) succEl.style.display = "none";
 
-      if (tab === "register") {
-        if (loginTab) loginTab.classList.remove("active");
-        if (regTab) regTab.classList.add("active");
-        if (loginBox) loginBox.style.display = "none";
-        if (regBox) regBox.style.display = "block";
-        const title = document.getElementById("authModalTitle");
-        const sub = document.getElementById("authModalSubtitle");
-        if (title) title.textContent = "Create an Account";
-        if (sub) sub.textContent = "Start tracking your interview scores and improvement";
-      } else {
+      if (tab === "login") {
         if (regTab) regTab.classList.remove("active");
         if (loginTab) loginTab.classList.add("active");
         if (regBox) regBox.style.display = "none";
@@ -5840,6 +5850,16 @@
         const sub = document.getElementById("authModalSubtitle");
         if (title) title.textContent = "Welcome Back";
         if (sub) sub.textContent = "Sign in to access your interview history and roadmap";
+      } else {
+        // Default: Create Account (Register)
+        if (loginTab) loginTab.classList.remove("active");
+        if (regTab) regTab.classList.add("active");
+        if (loginBox) loginBox.style.display = "none";
+        if (regBox) regBox.style.display = "block";
+        const title = document.getElementById("authModalTitle");
+        const sub = document.getElementById("authModalSubtitle");
+        if (title) title.textContent = "Create an Account";
+        if (sub) sub.textContent = "Start tracking your interview scores and improvement";
       }
     }
 

@@ -19,6 +19,13 @@ try {
 class RelationalDatabase {
   constructor() {
     this.db = null;
+    this.memoryStore = {
+      users: new Map(),
+      sessions: new Map(),
+      profiles: new Map(),
+      bookmarks: new Map(),
+      interviews: new Map()
+    };
     this.init();
   }
 
@@ -36,6 +43,11 @@ class RelationalDatabase {
       console.warn("[Database] Error initializing native SQLite, using persistent fallback:", err.message);
       this.initFallback();
     }
+  }
+
+  initFallback() {
+    this.db = null;
+    console.log("[Database] In-memory persistent database fallback active.");
   }
 
   runMigrations() {
@@ -185,83 +197,187 @@ class RelationalDatabase {
     const now = new Date().toISOString();
     const cleanEmail = email.toLowerCase().trim();
 
-    const insert = this.db.prepare(`
-      INSERT INTO users (id, name, email, password_hash, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    insert.run(id, name.trim(), cleanEmail, passwordHash, now, now);
+    if (this.db) {
+      try {
+        const insert = this.db.prepare(`
+          INSERT INTO users (id, name, email, password_hash, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        insert.run(id, name.trim(), cleanEmail, passwordHash, now, now);
 
-    // Create default profile for this user
-    const insertProfile = this.db.prepare(`
-      INSERT INTO user_profiles (user_id, name, branch, year, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    insertProfile.run(id, name.trim(), branch || "Engineering", year || "1st Year", now);
+        // Create default profile for this user
+        const insertProfile = this.db.prepare(`
+          INSERT INTO user_profiles (user_id, name, branch, year, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        insertProfile.run(id, name.trim(), branch || "Engineering", year || "1st Year", now);
 
+        return { id, name: name.trim(), email: cleanEmail, branch, year, created_at: now };
+      } catch (err) {
+        console.warn("[Database] SQLite createUser error, using in-memory store:", err.message);
+      }
+    }
+
+    // In-memory fallback
+    const user = { id, name: name.trim(), email: cleanEmail, password_hash: passwordHash, branch, year, created_at: now, updated_at: now };
+    this.memoryStore.users.set(cleanEmail, user);
+    this.memoryStore.users.set(id, user);
     return { id, name: name.trim(), email: cleanEmail, branch, year, created_at: now };
   }
 
   async getUserByEmail(email) {
     if (!email) return null;
     const cleanEmail = email.toLowerCase().trim();
-    const stmt = this.db.prepare(`SELECT * FROM users WHERE email = ?`);
-    return stmt.get(cleanEmail) || null;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`SELECT * FROM users WHERE email = ?`);
+        return stmt.get(cleanEmail) || null;
+      } catch (err) {
+        console.warn("[Database] SQLite getUserByEmail error:", err.message);
+      }
+    }
+    return this.memoryStore.users.get(cleanEmail) || null;
   }
 
   async getUserById(id) {
     if (!id) return null;
-    const stmt = this.db.prepare(`SELECT id, name, email, created_at, updated_at FROM users WHERE id = ?`);
-    return stmt.get(id) || null;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`SELECT id, name, email, created_at, updated_at FROM users WHERE id = ?`);
+        return stmt.get(id) || null;
+      } catch (err) {
+        console.warn("[Database] SQLite getUserById error:", err.message);
+      }
+    }
+    return this.memoryStore.users.get(id) || null;
   }
 
   async deleteUser(id) {
     if (!id) return false;
-    const stmt = this.db.prepare(`DELETE FROM users WHERE id = ?`);
-    const result = stmt.run(id);
-    return result.changes > 0;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`DELETE FROM users WHERE id = ?`);
+        const result = stmt.run(id);
+        return result.changes > 0;
+      } catch (err) {
+        console.warn("[Database] SQLite deleteUser error:", err.message);
+      }
+    }
+    const user = this.memoryStore.users.get(id);
+    if (user) {
+      this.memoryStore.users.delete(user.email);
+      this.memoryStore.users.delete(id);
+      return true;
+    }
+    return false;
   }
 
   // --- SESSIONS ---
   async createSession(userId, tokenHash, expiresAt, userAgent = "", ipAddress = "") {
     const id = "sess_tok_" + crypto.randomUUID();
     const now = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, user_agent, ip_address)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, userId, tokenHash, expiresAt, now, userAgent, ipAddress);
-    return { id, userId, expiresAt };
+
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, user_agent, ip_address)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run(id, userId, tokenHash, expiresAt, now, userAgent, ipAddress);
+        return { id, userId, tokenHash, expiresAt };
+      } catch (err) {
+        console.warn("[Database] SQLite createSession error:", err.message);
+      }
+    }
+
+    const sess = { id, user_id: userId, token_hash: tokenHash, expires_at: expiresAt, created_at: now, user_agent: userAgent, ip_address: ipAddress };
+    this.memoryStore.sessions.set(tokenHash, sess);
+    return { id, userId, tokenHash, expiresAt };
   }
 
   async getSessionByTokenHash(tokenHash) {
     if (!tokenHash) return null;
     const now = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      SELECT s.id AS session_id, s.user_id, s.expires_at, u.name, u.email
-      FROM sessions s
-      JOIN users u ON s.user_id = u.id
-      WHERE s.token_hash = ? AND s.expires_at > ?
-    `);
-    const session = stmt.get(tokenHash, now);
-    return session || null;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`
+          SELECT s.id AS session_id, s.user_id, s.expires_at, u.name, u.email
+          FROM sessions s
+          JOIN users u ON s.user_id = u.id
+          WHERE s.token_hash = ? AND s.expires_at > ?
+        `);
+        const session = stmt.get(tokenHash, now);
+        if (session) return session;
+      } catch (err) {
+        console.warn("[Database] SQLite getSessionByTokenHash error:", err.message);
+      }
+    }
+    const sess = this.memoryStore.sessions.get(tokenHash);
+    if (!sess) return null;
+    if (sess.expires_at <= now) {
+      this.memoryStore.sessions.delete(tokenHash);
+      return null;
+    }
+    const user = this.memoryStore.users.get(sess.user_id);
+    return {
+      session_id: sess.id,
+      user_id: sess.user_id,
+      expires_at: sess.expires_at,
+      name: user ? user.name : "",
+      email: user ? user.email : ""
+    };
   }
 
   async deleteSessionByTokenHash(tokenHash) {
     if (!tokenHash) return false;
-    const stmt = this.db.prepare(`DELETE FROM sessions WHERE token_hash = ?`);
-    const result = stmt.run(tokenHash);
-    return result.changes > 0;
+    let deleted = false;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`DELETE FROM sessions WHERE token_hash = ?`);
+        const result = stmt.run(tokenHash);
+        deleted = result.changes > 0;
+      } catch (err) {
+        console.warn("[Database] SQLite deleteSession error:", err.message);
+      }
+    }
+    if (this.memoryStore.sessions.has(tokenHash)) {
+      this.memoryStore.sessions.delete(tokenHash);
+      deleted = true;
+    }
+    return deleted;
   }
 
   async deleteExpiredSessions() {
     const now = new Date().toISOString();
-    const stmt = this.db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`);
-    stmt.run(now);
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`);
+        stmt.run(now);
+      } catch (err) {
+        console.warn("[Database] SQLite deleteExpiredSessions error:", err.message);
+      }
+    }
+    for (const [hash, sess] of this.memoryStore.sessions.entries()) {
+      if (sess.expires_at <= now) {
+        this.memoryStore.sessions.delete(hash);
+      }
+    }
   }
 
   async deleteAllUserSessions(userId) {
-    const stmt = this.db.prepare(`DELETE FROM sessions WHERE user_id = ?`);
-    stmt.run(userId);
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`DELETE FROM sessions WHERE user_id = ?`);
+        stmt.run(userId);
+      } catch (err) {
+        console.warn("[Database] SQLite deleteAllUserSessions error:", err.message);
+      }
+    }
+    for (const [hash, sess] of this.memoryStore.sessions.entries()) {
+      if (sess.user_id === userId) {
+        this.memoryStore.sessions.delete(hash);
+      }
+    }
   }
 
   // --- USER PROFILES ---
@@ -286,33 +402,57 @@ class RelationalDatabase {
 
     if (!userId) return defaults;
 
-    const stmt = this.db.prepare(`
-      SELECT p.*, u.email, u.name AS account_name
-      FROM user_profiles p
-      JOIN users u ON p.user_id = u.id
-      WHERE p.user_id = ?
-    `);
-    const row = stmt.get(userId);
-    if (!row) return defaults;
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`
+          SELECT p.*, u.email, u.name AS account_name
+          FROM user_profiles p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.user_id = ?
+        `);
+        const row = stmt.get(userId);
+        if (row) {
+          return {
+            name: row.name || row.account_name || "",
+            email: row.email || "",
+            college: row.college || "",
+            year: row.year || "1st Year",
+            branch: row.branch || "Engineering",
+            targetRole: row.target_role || "Web Developer",
+            difficulty: row.difficulty || "Entry-level / Junior",
+            goal: row.goal || "Placement",
+            defaults: {
+              role: row.target_role || "Web Developer",
+              difficulty: row.difficulty || "Entry-level / Junior",
+              questionCount: row.question_count || 5,
+              voiceMode: Boolean(row.voice_mode),
+              quickFire: Boolean(row.quick_fire),
+              companyType: row.company_type || "Product"
+            },
+            updatedAt: row.updated_at
+          };
+        }
+      } catch (err) {
+        console.warn("[Database] SQLite getProfile error:", err.message);
+      }
+    }
 
+    const memProf = this.memoryStore.profiles.get(userId);
+    const memUser = this.memoryStore.users.get(userId);
+    if (memProf) {
+      return {
+        ...defaults,
+        ...memProf,
+        email: memUser ? memUser.email : "",
+        name: memProf.name || (memUser ? memUser.name : "")
+      };
+    }
     return {
-      name: row.name || row.account_name || "",
-      email: row.email || "",
-      college: row.college || "",
-      year: row.year || "1st Year",
-      branch: row.branch || "Engineering",
-      targetRole: row.target_role || "Web Developer",
-      difficulty: row.difficulty || "Entry-level / Junior",
-      goal: row.goal || "Placement",
-      defaults: {
-        role: row.target_role || "Web Developer",
-        difficulty: row.difficulty || "Entry-level / Junior",
-        questionCount: row.question_count || 5,
-        voiceMode: Boolean(row.voice_mode),
-        quickFire: Boolean(row.quick_fire),
-        companyType: row.company_type || "Product"
-      },
-      updatedAt: row.updated_at
+      ...defaults,
+      name: memUser ? memUser.name : "",
+      email: memUser ? memUser.email : "",
+      branch: memUser ? memUser.branch || "Engineering" : "Engineering",
+      year: memUser ? memUser.year || "1st Year" : "1st Year"
     };
   }
 
@@ -320,42 +460,67 @@ class RelationalDatabase {
     const now = new Date().toISOString();
     const def = profile.defaults || {};
 
-    const stmt = this.db.prepare(`
-      INSERT INTO user_profiles (
-        user_id, name, college, year, branch, target_role, difficulty, goal,
-        question_count, voice_mode, quick_fire, company_type, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET
-        name = excluded.name,
-        college = excluded.college,
-        year = excluded.year,
-        branch = excluded.branch,
-        target_role = excluded.target_role,
-        difficulty = excluded.difficulty,
-        goal = excluded.goal,
-        question_count = excluded.question_count,
-        voice_mode = excluded.voice_mode,
-        quick_fire = excluded.quick_fire,
-        company_type = excluded.company_type,
-        updated_at = excluded.updated_at
-    `);
+    if (this.db) {
+      try {
+        const stmt = this.db.prepare(`
+          INSERT INTO user_profiles (
+            user_id, name, college, year, branch, target_role, difficulty, goal,
+            question_count, voice_mode, quick_fire, company_type, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            name = excluded.name,
+            college = excluded.college,
+            year = excluded.year,
+            branch = excluded.branch,
+            target_role = excluded.target_role,
+            difficulty = excluded.difficulty,
+            goal = excluded.goal,
+            question_count = excluded.question_count,
+            voice_mode = excluded.voice_mode,
+            quick_fire = excluded.quick_fire,
+            company_type = excluded.company_type,
+            updated_at = excluded.updated_at
+        `);
 
-    stmt.run(
-      userId,
-      profile.name || "",
-      profile.college || "",
-      profile.year || "1st Year",
-      profile.branch || "Engineering",
-      profile.targetRole || def.role || "Web Developer",
-      profile.difficulty || def.difficulty || "Entry-level / Junior",
-      profile.goal || "Placement",
-      def.questionCount || 5,
-      def.voiceMode === false ? 0 : 1,
-      def.quickFire === false ? 0 : 1,
-      def.companyType || "Product",
-      now
-    );
+        stmt.run(
+          userId,
+          profile.name || "",
+          profile.college || "",
+          profile.year || "1st Year",
+          profile.branch || "Engineering",
+          profile.targetRole || def.role || "Web Developer",
+          profile.difficulty || def.difficulty || "Entry-level / Junior",
+          profile.goal || "Placement",
+          def.questionCount || 5,
+          def.voiceMode === false ? 0 : 1,
+          def.quickFire === false ? 0 : 1,
+          def.companyType || "Product",
+          now
+        );
+      } catch (err) {
+        console.warn("[Database] SQLite saveProfile error:", err.message);
+      }
+    }
+
+    this.memoryStore.profiles.set(userId, {
+      name: profile.name || "",
+      college: profile.college || "",
+      year: profile.year || "1st Year",
+      branch: profile.branch || "Engineering",
+      targetRole: profile.targetRole || def.role || "Web Developer",
+      difficulty: profile.difficulty || def.difficulty || "Entry-level / Junior",
+      goal: profile.goal || "Placement",
+      defaults: {
+        role: profile.targetRole || def.role || "Web Developer",
+        difficulty: profile.difficulty || def.difficulty || "Entry-level / Junior",
+        questionCount: def.questionCount || 5,
+        voiceMode: def.voiceMode !== false,
+        quickFire: def.quickFire !== false,
+        companyType: def.companyType || "Product"
+      },
+      updatedAt: now
+    });
 
     return this.getProfile(userId);
   }
