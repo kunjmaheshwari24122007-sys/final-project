@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "name": "",
+    "college": "",
+    "year": "1st Year",
+    "branch": "Engineering",
+    "targetRole": "Web Developer",
+    "difficulty": "Entry-level / Junior",
+    "defaults": {
+      "questionCount": 5,
+      "voiceMode": true,
+      "quickFire": true,
+      "companyType": "Product"
+    },
+    "updatedAt": "2026-11-16T11:54:10.728Z"
+  },
+  "sessions": [],
+  "bookmarks": [],
+  "plan": {},
+  "resumes": []
+}

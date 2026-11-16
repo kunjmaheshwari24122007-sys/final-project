@@ -2286,6 +2286,162 @@
       color: var(--color-rust);
     }
 
+    /* User Dropdown */
+    .user-dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 220px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-card);
+      padding: 8px;
+      box-shadow: 0 12px 30px rgba(27, 36, 28, 0.15);
+      z-index: 1000;
+      animation: fadeInDropdown 0.18s ease-out;
+    }
+
+    @keyframes fadeInDropdown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dropdown-header {
+      padding: 8px 12px 10px;
+    }
+
+    .dropdown-user-name {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dropdown-user-email {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-card);
+      margin: 4px 0;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 12px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition-fast);
+      box-sizing: border-box;
+    }
+
+    .dropdown-item:hover {
+      background: var(--bg-surface-alt);
+      color: var(--color-rust);
+    }
+
+    .dropdown-item.text-danger {
+      color: var(--color-score-bad);
+    }
+
+    .dropdown-item.text-danger:hover {
+      background: rgba(179, 38, 30, 0.08);
+      color: var(--color-score-bad);
+    }
+
+    /* Auth Modal Tabs & Elements */
+    .auth-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-surface-alt);
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+    }
+
+    .auth-tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+
+    .auth-tab-btn.active {
+      background: var(--bg-card);
+      color: var(--color-rust);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .auth-alert-error {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(179, 38, 30, 0.1);
+      border: 1px solid rgba(179, 38, 30, 0.3);
+      color: var(--color-score-bad);
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .auth-alert-success {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(79, 122, 74, 0.12);
+      border: 1px solid rgba(79, 122, 74, 0.3);
+      color: var(--color-score-good);
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .guest-notice-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-card);
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+      color: var(--text-primary);
+    }
+
     /* Dismissible Callout Banner */
     .profile-callout-banner {
       display: flex;
@@ -3242,15 +3398,38 @@
           <span id="voiceStatusText">Voice Active</span>
         </div>
 
-        <!-- Round Avatar Button to #profile -->
-        <a href="#profile" class="nav-avatar-btn" id="navAvatarBtn" title="View Profile" data-page="profile" aria-label="User Profile">
-          <span id="navAvatarInitials">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </span>
-        </a>
+        <!-- Auth Controls (Desktop): Logged Out -->
+        <div id="navAuthLoggedOut" style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="navLoginBtn" onclick="openAuthModal('login')">Log In</button>
+          <button type="button" class="btn btn-primary btn-sm" id="navRegisterBtn" onclick="openAuthModal('register')">Sign Up</button>
+        </div>
+
+        <!-- Auth Controls (Desktop): Logged In Dropdown -->
+        <div id="navAuthLoggedIn" class="user-dropdown-container" style="display: none;">
+          <button type="button" class="nav-avatar-btn" id="navAvatarBtn" title="Account Menu" aria-label="User Profile" onclick="toggleUserDropdown(event)">
+            <span id="navAvatarInitials">IA</span>
+          </button>
+          <div class="user-dropdown-menu" id="navUserDropdown" style="display: none;">
+            <div class="dropdown-header">
+              <div class="dropdown-user-name" id="dropdownUserName">Student</div>
+              <div class="dropdown-user-email" id="dropdownUserEmail">student@example.com</div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#profile" class="dropdown-item" onclick="closeUserDropdown()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              My Profile
+            </a>
+            <a href="#progress" class="dropdown-item" onclick="closeUserDropdown()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              My Progress
+            </a>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item text-danger" onclick="handleLogout()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Log Out
+            </button>
+          </div>
+        </div>
 
         <!-- Mobile Hamburger Button -->
         <button type="button" class="nav-hamburger" id="navHamburger" aria-label="Toggle Navigation Menu" onclick="toggleMobileMenu()">
@@ -3270,6 +3449,17 @@
         <a href="#questions" class="nav-mobile-link" data-page="questions" onclick="closeMobileMenu()">Question Bank</a>
         <a href="#about" class="nav-mobile-link" data-page="about" onclick="closeMobileMenu()">How It Works</a>
         <a href="#profile" class="nav-mobile-link" data-page="profile" onclick="closeMobileMenu()">Profile</a>
+
+        <!-- Mobile Auth Sections -->
+        <div id="mobileAuthLoggedOut" style="display: flex; gap: 8px; padding: 10px 4px 4px; margin-top: 6px; border-top: 1px solid var(--border-card);">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;" onclick="closeMobileMenu(); openAuthModal('login');">Log In</button>
+          <button type="button" class="btn btn-primary btn-sm" style="flex: 1; justify-content: center;" onclick="closeMobileMenu(); openAuthModal('register');">Sign Up</button>
+        </div>
+        <div id="mobileAuthLoggedIn" style="display: none; padding: 10px 4px 4px; margin-top: 6px; border-top: 1px solid var(--border-card);">
+          <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 2px;" id="mobileUserName">Student</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;" id="mobileUserEmail">student@example.com</div>
+          <button type="button" class="btn btn-secondary btn-sm" style="width: 100%; color: var(--color-score-bad); justify-content: center;" onclick="closeMobileMenu(); handleLogout();">Log Out</button>
+        </div>
       </div>
     </header>
 
@@ -4153,6 +4343,19 @@
         <p style="color: var(--text-secondary); font-size: 0.95rem;">Track your evaluation history, score trajectory, and category strengths over time.</p>
       </div>
 
+      <!-- Guest Notice Banner -->
+      <div class="guest-notice-banner" id="progGuestNotice" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-rust)" stroke-width="2" style="flex-shrink:0;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>You are viewing local session data. <strong>Create an account or log in</strong> to save your interview sessions, scores, and resume permanently to your private SQLite database.</span>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openAuthModal('register')" style="white-space: nowrap;">Sign Up / Log In</button>
+      </div>
+
       <!-- 4 Stat Cards -->
       <div class="progress-stats-grid">
         <div class="stat-card">
@@ -4507,9 +4710,9 @@
         <div class="section-kicker">CONTROL & BACKUP</div>
         <h3 style="font-family: var(--font-heading); font-size: 1.35rem; margin: 4px 0 8px;">Data and Privacy</h3>
         <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;">
-          All your data stays in this browser. Nothing is sent anywhere except your answers to the Gemini API during an interview.
+          Your data is strictly isolated and protected. When signed in, all evaluations, bookmarks, and plans sync securely with your private server session.
         </p>
-        <div class="data-privacy-actions">
+        <div class="data-privacy-actions" style="margin-bottom: 18px;">
           <button type="button" class="btn btn-secondary btn-sm" id="exportDataBtn" onclick="exportUserData()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export my data (JSON)
@@ -4520,6 +4723,21 @@
           <button type="button" class="btn btn-secondary btn-sm" onclick="confirmResetProfile()">
             Reset profile
           </button>
+        </div>
+
+        <!-- Account Management & Danger Zone -->
+        <div id="profileAccountSection" style="padding-top: 18px; border-top: 1px solid var(--border-card);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+            <div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--color-score-bad); margin-bottom: 2px;" id="profileAccountTitle">Account Management</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary);" id="profileAccountDesc">
+                Checking account status...
+              </div>
+            </div>
+            <div id="profileAccountActionBtnContainer">
+              <!-- Dynamically populated based on state.currentUser -->
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -5047,6 +5265,129 @@
     </div>
   </div>
 
+  <!-- Authentication Modal (Sign In / Register) -->
+  <div class="modal-backdrop" id="authModal" onclick="closeAuthModal(event)">
+    <div class="modal-dialog" style="max-width: 440px;" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeAuthModal()" title="Close">✕</button>
+      
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div class="brand-icon-box" style="margin: 0 auto 12px; width: 44px; height: 44px;">
+          <svg viewBox="0 0 24 24" style="width: 26px; height: 26px;">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h3 style="font-family: var(--font-heading); font-size: 1.5rem; margin-bottom: 4px;" id="authModalTitle">Welcome to InterviewAce</h3>
+        <p style="font-size: 0.88rem; color: var(--text-secondary);" id="authModalSubtitle">Sign in or create an account to save your interview progress</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="authTabLogin" onclick="switchAuthTab('login')">Log In</button>
+        <button type="button" class="auth-tab-btn" id="authTabRegister" onclick="switchAuthTab('register')">Create Account</button>
+      </div>
+
+      <!-- Error and Success Banners -->
+      <div id="authModalError" class="auth-alert-error" style="display: none;"></div>
+      <div id="authModalSuccess" class="auth-alert-success" style="display: none;"></div>
+
+      <!-- Login Form -->
+      <div id="loginFormContainer">
+        <form id="loginForm" onsubmit="handleLoginFormSubmit(event)">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="loginEmail">Email Address</label>
+            <input type="email" id="loginEmail" class="form-input" required placeholder="name@college.edu" autocomplete="email">
+          </div>
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-input" required placeholder="Enter your password" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary" id="loginSubmitBtn" style="width: 100%; justify-content: center; padding: 12px;">
+            <span id="loginSubmitText">Sign In</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Register Form -->
+      <div id="registerFormContainer" style="display: none;">
+        <form id="registerForm" onsubmit="handleRegisterFormSubmit(event)">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="regName">Full Name</label>
+            <input type="text" id="regName" class="form-input" required placeholder="Rahul Sharma" maxlength="50" autocomplete="name">
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="regEmail">Email Address</label>
+            <input type="email" id="regEmail" class="form-input" required placeholder="name@college.edu" autocomplete="email">
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" class="form-input" required placeholder="At least 8 characters" minlength="8" autocomplete="new-password">
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">Must be at least 8 characters</span>
+          </div>
+          <div class="form-row" style="margin-bottom: 18px;">
+            <div class="form-group">
+              <label for="regBranch">Branch (Optional)</label>
+              <input type="text" id="regBranch" class="form-input" placeholder="Computer Science">
+            </div>
+            <div class="form-group">
+              <label for="regYear">Year (Optional)</label>
+              <select id="regYear" class="form-select">
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="registerSubmitBtn" style="width: 100%; justify-content: center; padding: 12px;">
+            <span id="registerSubmitText">Create Free Account</span>
+          </button>
+        </form>
+      </div>
+
+      <div style="text-align: center; margin-top: 16px;">
+        <button type="button" onclick="closeAuthModal()" style="background: none; border: none; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;">
+          Continue as Guest
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Account Confirmation Modal -->
+  <div class="modal-backdrop" id="deleteAccountModal" onclick="closeDeleteAccountModal(event)">
+    <div class="modal-dialog" style="max-width: 480px;" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeDeleteAccountModal()" title="Close">✕</button>
+
+      <div style="text-align: center; margin-bottom: 16px;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(179, 38, 30, 0.12); color: var(--color-score-bad); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--color-score-bad); margin-bottom: 6px;">Delete Account Permanently</h3>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5;">
+          This action <strong>cannot be undone</strong>. Your account, saved profile, resume, bookmarks, 7-day plan, and all interview session scores will be permanently deleted from the database.
+        </p>
+      </div>
+
+      <div id="deleteAccountError" class="auth-alert-error" style="display: none;"></div>
+
+      <form id="deleteAccountForm" onsubmit="handleDeleteAccountSubmit(event)">
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="deleteAccountPassword">Confirm your password to proceed:</label>
+          <input type="password" id="deleteAccountPassword" class="form-input" required placeholder="Enter your current password">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeDeleteAccountModal()">Cancel</button>
+          <button type="submit" class="btn btn-sm" id="confirmDeleteAccountBtn" style="background: var(--color-score-bad); color: #FFF; border: none; padding: 8px 16px;">
+            Permanently Delete My Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==========================================================================
        CORE APPLICATION JAVASCRIPT
        ========================================================================== -->
@@ -5113,7 +5454,10 @@
 
       // Multi-Page & Session State
       isInterviewActive: false,
-      sessionSaved: false
+      sessionSaved: false,
+
+      // Authentication State
+      currentUser: null
     };
 
     /**
@@ -5202,6 +5546,441 @@
     }
 
     /**
+     * Safe HTML Escaping Utility
+     */
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    /**
+     * Check current session authentication status with backend
+     */
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          credentials: "include",
+          signal: AbortSignal.timeout(3500)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            state.currentUser = data.user;
+            updateAuthUI(true);
+            if (data.user.profile) {
+              const currentProf = loadProfile();
+              saveProfile({ ...currentProf, ...data.user.profile, name: data.user.name || currentProf.name });
+            }
+            await Promise.allSettled([
+              syncBookmarksFromBackend(),
+              syncPlanFromBackend()
+            ]);
+            if (currentPage === "progress") renderProgressPage();
+            if (currentPage === "profile") renderProfilePage();
+            return data.user;
+          }
+        }
+      } catch (err) {
+        console.warn("Auth check warning:", err);
+      }
+      state.currentUser = null;
+      updateAuthUI(false);
+      return null;
+    }
+
+    /**
+     * Update UI components according to authentication status
+     */
+    function updateAuthUI(isLoggedIn) {
+      const loggedOutNav = document.getElementById("navAuthLoggedOut");
+      const loggedInNav = document.getElementById("navAuthLoggedIn");
+      const mobileLoggedOut = document.getElementById("mobileAuthLoggedOut");
+      const mobileLoggedIn = document.getElementById("mobileAuthLoggedIn");
+      const progGuestNotice = document.getElementById("progGuestNotice");
+      const profileAccountTitle = document.getElementById("profileAccountTitle");
+      const profileAccountDesc = document.getElementById("profileAccountDesc");
+      const profileAccountAction = document.getElementById("profileAccountActionBtnContainer");
+
+      if (isLoggedIn && state.currentUser) {
+        if (loggedOutNav) loggedOutNav.style.display = "none";
+        if (loggedInNav) loggedInNav.style.display = "inline-block";
+        if (mobileLoggedOut) mobileLoggedOut.style.display = "none";
+        if (mobileLoggedIn) mobileLoggedIn.style.display = "block";
+        if (progGuestNotice) progGuestNotice.style.display = "none";
+
+        const name = state.currentUser.name || "Student";
+        const email = state.currentUser.email || "";
+        const initials = getInitials(name) || "IA";
+
+        const navInitials = document.getElementById("navAvatarInitials");
+        if (navInitials) navInitials.textContent = initials;
+
+        const dropName = document.getElementById("dropdownUserName");
+        const dropEmail = document.getElementById("dropdownUserEmail");
+        if (dropName) dropName.textContent = name;
+        if (dropEmail) dropEmail.textContent = email;
+
+        const mobName = document.getElementById("mobileUserName");
+        const mobEmail = document.getElementById("mobileUserEmail");
+        if (mobName) mobName.textContent = name;
+        if (mobEmail) mobEmail.textContent = email;
+
+        // Profile Page Account Management
+        if (profileAccountTitle) profileAccountTitle.textContent = "Account Management";
+        if (profileAccountDesc) profileAccountDesc.innerHTML = `Signed in as <strong>${escapeHtml(email)}</strong> (${escapeHtml(name)}). Your sessions and profile are securely isolated.`;
+        if (profileAccountAction) {
+          profileAccountAction.innerHTML = `
+            <button type="button" class="btn btn-sm" style="border: 1px solid var(--color-score-bad); color: var(--color-score-bad); background: transparent; cursor: pointer; padding: 7px 14px;" onclick="openDeleteAccountModal()">
+              Delete Account
+            </button>
+          `;
+        }
+      } else {
+        if (loggedOutNav) loggedOutNav.style.display = "flex";
+        if (loggedInNav) loggedInNav.style.display = "none";
+        if (mobileLoggedOut) mobileLoggedOut.style.display = "flex";
+        if (mobileLoggedIn) mobileLoggedIn.style.display = "none";
+        if (progGuestNotice) progGuestNotice.style.display = "flex";
+
+        // Profile Page Guest state
+        if (profileAccountTitle) profileAccountTitle.textContent = "Account & Cloud Sync";
+        if (profileAccountDesc) profileAccountDesc.textContent = "You are currently practicing in Guest mode (local browser storage). Sign up or log in to sync your interview history, resume, and roadmap.";
+        if (profileAccountAction) {
+          profileAccountAction.innerHTML = `
+            <button type="button" class="btn btn-primary btn-sm" onclick="openAuthModal('register')">
+              Sign Up / Log In
+            </button>
+          `;
+        }
+      }
+    }
+
+    /**
+     * User Dropdown Controls
+     */
+    function toggleUserDropdown(event) {
+      if (event) event.stopPropagation();
+      const dd = document.getElementById("navUserDropdown");
+      if (!dd) return;
+      const isOpen = dd.style.display === "block";
+      dd.style.display = isOpen ? "none" : "block";
+    }
+
+    function closeUserDropdown() {
+      const dd = document.getElementById("navUserDropdown");
+      if (dd) dd.style.display = "none";
+    }
+
+    document.addEventListener("click", (e) => {
+      const container = document.getElementById("navAuthLoggedIn");
+      if (container && !container.contains(e.target)) {
+        closeUserDropdown();
+      }
+    });
+
+    /**
+     * Auth Modal Operations
+     */
+    function openAuthModal(tab = "login") {
+      closeUserDropdown();
+      const modal = document.getElementById("authModal");
+      if (!modal) return;
+      const errEl = document.getElementById("authModalError");
+      const succEl = document.getElementById("authModalSuccess");
+      if (errEl) errEl.style.display = "none";
+      if (succEl) succEl.style.display = "none";
+      switchAuthTab(tab);
+      modal.classList.add("open");
+    }
+
+    function closeAuthModal(event) {
+      if (event && event.target && event.target.closest && event.target.closest(".modal-dialog") && !event.target.classList.contains("modal-close-btn")) {
+        return;
+      }
+      const modal = document.getElementById("authModal");
+      if (modal) modal.classList.remove("open");
+    }
+
+    function switchAuthTab(tab) {
+      const loginTab = document.getElementById("authTabLogin");
+      const regTab = document.getElementById("authTabRegister");
+      const loginBox = document.getElementById("loginFormContainer");
+      const regBox = document.getElementById("registerFormContainer");
+      const errEl = document.getElementById("authModalError");
+      const succEl = document.getElementById("authModalSuccess");
+      if (errEl) errEl.style.display = "none";
+      if (succEl) succEl.style.display = "none";
+
+      if (tab === "register") {
+        if (loginTab) loginTab.classList.remove("active");
+        if (regTab) regTab.classList.add("active");
+        if (loginBox) loginBox.style.display = "none";
+        if (regBox) regBox.style.display = "block";
+        const title = document.getElementById("authModalTitle");
+        const sub = document.getElementById("authModalSubtitle");
+        if (title) title.textContent = "Create an Account";
+        if (sub) sub.textContent = "Start tracking your interview scores and improvement";
+      } else {
+        if (regTab) regTab.classList.remove("active");
+        if (loginTab) loginTab.classList.add("active");
+        if (regBox) regBox.style.display = "none";
+        if (loginBox) loginBox.style.display = "block";
+        const title = document.getElementById("authModalTitle");
+        const sub = document.getElementById("authModalSubtitle");
+        if (title) title.textContent = "Welcome Back";
+        if (sub) sub.textContent = "Sign in to access your interview history and roadmap";
+      }
+    }
+
+    /**
+     * Handle Login Submission
+     */
+    async function handleLoginFormSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      const errEl = document.getElementById("authModalError");
+      const submitBtn = document.getElementById("loginSubmitBtn");
+      const submitText = document.getElementById("loginSubmitText");
+
+      if (errEl) errEl.style.display = "none";
+      if (submitBtn) submitBtn.disabled = true;
+      if (submitText) submitText.textContent = "Signing In...";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Login failed. Please check your email and password.");
+        }
+
+        state.currentUser = data.user;
+        updateAuthUI(true);
+
+        if (data.user.profile) {
+          const prof = loadProfile();
+          saveProfile({ ...prof, ...data.user.profile, name: data.user.name || prof.name });
+        }
+
+        closeAuthModal();
+        await Promise.allSettled([
+          syncBookmarksFromBackend(),
+          syncPlanFromBackend()
+        ]);
+        renderProgressPage();
+        renderProfilePage();
+        updateNavbarAvatar();
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || "Failed to log in. Please try again.";
+          errEl.style.display = "flex";
+        }
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = "Sign In";
+      }
+    }
+
+    /**
+     * Handle Registration Submission
+     */
+    async function handleRegisterFormSubmit(event) {
+      event.preventDefault();
+      const name = document.getElementById("regName").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const password = document.getElementById("regPassword").value;
+      const branch = document.getElementById("regBranch").value.trim();
+      const year = document.getElementById("regYear").value;
+      const errEl = document.getElementById("authModalError");
+      const submitBtn = document.getElementById("registerSubmitBtn");
+      const submitText = document.getElementById("registerSubmitText");
+
+      if (errEl) errEl.style.display = "none";
+      if (password.length < 8) {
+        if (errEl) {
+          errEl.textContent = "Password must be at least 8 characters long.";
+          errEl.style.display = "flex";
+        }
+        return;
+      }
+
+      if (submitBtn) submitBtn.disabled = true;
+      if (submitText) submitText.textContent = "Creating Account...";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ name, email, password, branch, year })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Registration failed. An account with this email may already exist.");
+        }
+
+        state.currentUser = data.user;
+        updateAuthUI(true);
+
+        const prof = loadProfile();
+        prof.name = name;
+        if (branch) prof.branch = branch;
+        if (year) prof.year = year;
+        saveProfile(prof);
+
+        closeAuthModal();
+        renderProgressPage();
+        renderProfilePage();
+        updateNavbarAvatar();
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || "Failed to create account.";
+          errEl.style.display = "flex";
+        }
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = "Create Free Account";
+      }
+    }
+
+    /**
+     * Handle User Logout
+     */
+    async function handleLogout() {
+      try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch (e) {
+        console.warn("Logout error:", e);
+      }
+      state.currentUser = null;
+      closeUserDropdown();
+      updateAuthUI(false);
+      renderProgressPage();
+      renderProfilePage();
+      updateNavbarAvatar();
+    }
+
+    /**
+     * Account Deletion Handlers
+     */
+    function openDeleteAccountModal() {
+      const modal = document.getElementById("deleteAccountModal");
+      const err = document.getElementById("deleteAccountError");
+      const pass = document.getElementById("deleteAccountPassword");
+      if (err) err.style.display = "none";
+      if (pass) pass.value = "";
+      if (modal) modal.classList.add("open");
+    }
+
+    function closeDeleteAccountModal(event) {
+      if (event && event.target && event.target.closest && event.target.closest(".modal-dialog") && !event.target.classList.contains("modal-close-btn")) {
+        return;
+      }
+      const modal = document.getElementById("deleteAccountModal");
+      if (modal) modal.classList.remove("open");
+    }
+
+    async function handleDeleteAccountSubmit(event) {
+      event.preventDefault();
+      const password = document.getElementById("deleteAccountPassword").value;
+      const errEl = document.getElementById("deleteAccountError");
+      const btn = document.getElementById("confirmDeleteAccountBtn");
+
+      if (errEl) errEl.style.display = "none";
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/account`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to delete account. Incorrect password.");
+        }
+
+        clearAllHistory();
+        confirmResetProfile(false);
+        state.currentUser = null;
+        closeDeleteAccountModal();
+        updateAuthUI(false);
+        renderProgressPage();
+        renderProfilePage();
+        updateNavbarAvatar();
+        alert("Your account and all associated data have been permanently deleted.");
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || "Failed to delete account.";
+          errEl.style.display = "flex";
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    /**
+     * Synchronize Bookmarks from Server
+     */
+    async function syncBookmarksFromBackend() {
+      if (!state.backendConnected) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/bookmarks`, {
+          credentials: "include"
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.bookmarks && Array.isArray(data.bookmarks)) {
+            const list = data.bookmarks.map(b => (typeof b === "string" ? b : b.question_id));
+            saveBookmarks(list);
+            if (currentPage === "questions") renderQuestionList();
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to sync bookmarks:", e);
+      }
+    }
+
+    /**
+     * Synchronize 7-Day Plan from Server
+     */
+    async function syncPlanFromBackend() {
+      if (!state.backendConnected) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/plan`, {
+          credentials: "include"
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.plan && Array.isArray(data.plan.completedDays)) {
+            state.planCompletedDays = {};
+            data.plan.completedDays.forEach(day => {
+              state.planCompletedDays[day] = true;
+            });
+            localStorage.setItem(STORAGE_KEY_PLAN, JSON.stringify(state.planCompletedDays));
+            if (typeof renderPlanChecklist === "function") renderPlanChecklist();
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to sync plan:", e);
+      }
+    }
+
+    /**
      * Resume Upload and Parsing Engine
      */
     async function handleResumeUpload(event, target) {
@@ -5236,6 +6015,7 @@
               const res = await fetch(`${API_BASE}/api/resume/parse`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
                   base64Data: base64Data,
                   fileName: file.name,
@@ -5515,6 +6295,7 @@
       window.addEventListener("hashchange", handleHashChange);
       handleHashChange();
       await checkBackendStatus();
+      await checkAuthStatus();
     });
 
     /**
@@ -5560,6 +6341,7 @@
         fetch(`${API_BASE}/api/history`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(sessionRecord)
         }).catch(err => console.warn("Failed to sync session to backend:", err));
       }
@@ -5574,7 +6356,8 @@
 
       if (state.backendConnected) {
         fetch(`${API_BASE}/api/history/${encodeURIComponent(id)}`, {
-          method: "DELETE"
+          method: "DELETE",
+          credentials: "include"
         }).catch(err => console.warn("Failed to delete session on backend:", err));
       }
     }
@@ -5590,7 +6373,8 @@
 
       if (state.backendConnected) {
         fetch(`${API_BASE}/api/history`, {
-          method: "DELETE"
+          method: "DELETE",
+          credentials: "include"
         }).catch(err => console.warn("Failed to clear sessions on backend:", err));
       }
     }
@@ -5847,9 +6631,75 @@
     /**
      * Progress Page Renderer
      */
-    function renderProgressPage() {
-      const history = loadHistory();
+    async function renderProgressPage() {
+      let history = loadHistory();
+      renderProgressStatsAndList(history);
 
+      const notice = document.getElementById("progGuestNotice");
+      if (!state.currentUser) {
+        if (notice) notice.style.display = "flex";
+      } else {
+        if (notice) notice.style.display = "none";
+      }
+
+      if (state.backendConnected) {
+        try {
+          const res = await fetch(`${API_BASE}/api/dashboard`, {
+            credentials: "include",
+            signal: AbortSignal.timeout(4000)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.authenticated) {
+              if (notice) notice.style.display = "none";
+              if (Array.isArray(data.sessions)) {
+                history = data.sessions;
+                saveHistory(history);
+              }
+              renderProgressFromDashboardData(data, history);
+            }
+          }
+        } catch (err) {
+          console.warn("Dashboard sync failed, using local history cache:", err);
+        }
+      }
+    }
+
+    function renderProgressFromDashboardData(data, history) {
+      const statSessions = document.getElementById("progStatSessions");
+      const statBest = document.getElementById("progStatBest");
+      const statAvg = document.getElementById("progStatAvg");
+      const statImprovement = document.getElementById("progStatImprovement");
+
+      if (statSessions) statSessions.textContent = data.totalSessions > 0 ? data.totalSessions : "-";
+      if (statBest) statBest.textContent = data.bestScore !== null ? `${data.bestScore}/100` : "-";
+      if (statAvg) statAvg.textContent = data.avgScore !== null ? `${data.avgScore}/100` : "-";
+      if (statImprovement) {
+        if (data.improvement !== null && data.improvement !== undefined) {
+          statImprovement.textContent = data.improvement > 0 ? `+${data.improvement}` : `${data.improvement}`;
+        } else {
+          statImprovement.textContent = "-";
+        }
+      }
+
+      const strongestEl = document.getElementById("progStrongestCategory");
+      const weakestEl = document.getElementById("progWeakestCategory");
+      if (data.strongestCategory) {
+        if (strongestEl) strongestEl.textContent = `${data.strongestCategory.category}: ${Math.round(data.strongestCategory.avgScore)}/100`;
+      } else {
+        if (strongestEl) strongestEl.textContent = "-";
+      }
+      if (data.weakestCategory) {
+        if (weakestEl) weakestEl.textContent = `${data.weakestCategory.category}: ${Math.round(data.weakestCategory.avgScore)}/100`;
+      } else {
+        if (weakestEl) weakestEl.textContent = "-";
+      }
+
+      // Chart & Session List
+      renderProgressChartAndList(history);
+    }
+
+    function renderProgressStatsAndList(history) {
       // 4 Stat Cards
       const statSessions = document.getElementById("progStatSessions");
       const statBest = document.getElementById("progStatBest");
@@ -5911,6 +6761,10 @@
         if (weakestEl) weakestEl.textContent = "-";
       }
 
+      renderProgressChartAndList(history);
+    }
+
+    function renderProgressChartAndList(history) {
       // SVG Line Chart
       const chartEmpty = document.getElementById("progChartEmpty");
       const chartSvg = document.getElementById("progChartSvg");
@@ -6242,6 +7096,9 @@
       const achQuickfire = document.getElementById("ach-quickfire");
       const hasQuickfireSession = history.some(s => s.quickFireEnabled || (s.questions && s.questions.some(q => q.type === "QuickFire")));
       if (achQuickfire) achQuickfire.classList.toggle("locked", !hasQuickfireSession);
+
+      // Account Management state sync
+      updateAuthUI(!!state.currentUser);
     }
 
     function saveUserProfile() {
@@ -6267,6 +7124,15 @@
       saveProfile(profile);
       updateNavbarAvatar();
       renderProfilePage();
+
+      if (state.backendConnected) {
+        fetch(`${API_BASE}/api/profile`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(profile)
+        }).catch(err => console.warn("Failed to sync profile to backend:", err));
+      }
 
       const notice = document.getElementById("profileSavedNotice");
       if (notice) {
@@ -6516,12 +7382,34 @@
       }
     }
 
-    function exportUserData() {
+    async function exportUserData() {
+      if (state.backendConnected && state.currentUser) {
+        try {
+          const res = await fetch(`${API_BASE}/api/data/export`, { credentials: "include" });
+          if (res.ok) {
+            const serverData = await res.json();
+            const blob = new Blob([JSON.stringify(serverData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `interviewace_backup_${new Date().toISOString().split("T")[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            return;
+          }
+        } catch (e) {
+          console.warn("Server export failed, falling back to local:", e);
+        }
+      }
       const data = {
         exportedAt: new Date().toISOString(),
         version: "2.5",
         profile: loadProfile(),
-        history: loadHistory()
+        history: loadHistory(),
+        bookmarks: typeof getBookmarks === "function" ? getBookmarks() : [],
+        plan: state.planCompletedDays
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -7112,6 +8000,7 @@
             const res = await fetch(`${API_BASE}/api/interview/generate-question`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({
                 role: state.role,
                 difficulty: state.difficulty,
@@ -7663,6 +8552,7 @@ Return ONLY a valid JSON object with this exact structure:
       const res = await fetch(`${API_BASE}/api/interview/evaluate-answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           role: state.role,
           difficulty: state.difficulty,
@@ -8294,6 +9184,7 @@ Return ONLY a valid JSON object matching this schema:
           const res = await fetch(`${API_BASE}/api/interview/generate-report`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({
               role: state.role,
               difficulty: state.difficulty,
@@ -8764,6 +9655,7 @@ Return ONLY valid JSON with this exact structure:
             fetch(`${API_BASE}/api/plan`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({ completedDays })
             }).catch(e => console.warn("Failed to sync plan progress:", e));
           }
@@ -9275,11 +10167,13 @@ Return ONLY valid JSON with this exact structure:
           fetch(`${API_BASE}/api/bookmarks`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({ questionId: id, note: "" })
           }).catch(() => {});
         } else {
           fetch(`${API_BASE}/api/bookmarks/${encodeURIComponent(id)}`, {
-            method: "DELETE"
+            method: "DELETE",
+            credentials: "include"
           }).catch(() => {});
         }
       }

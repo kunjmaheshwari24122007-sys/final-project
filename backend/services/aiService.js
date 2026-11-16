@@ -1,9 +1,48 @@
+const { z } = require("zod");
 const config = require("../config");
 
 let activeModel = config.defaultModel;
 
+// Validation Schemas for Gemini AI Output
+const EvaluationSchema = z.object({
+  score: z.number().int().min(0).max(10),
+  criteria: z.object({
+    relevance: z.number().int().min(0).max(2).default(1),
+    accuracy: z.number().int().min(0).max(2).default(1),
+    clarity: z.number().int().min(0).max(2).default(1),
+    depth: z.number().int().min(0).max(2).default(1),
+    structure: z.number().int().min(0).max(2).default(1),
+    communication: z.number().int().min(0).max(2).default(1)
+  }).default({}),
+  good: z.string().default("Demonstrated foundational effort."),
+  improve: z.string().default("Structure your answer with definition first, followed by a concrete project example."),
+  why_this_score: z.string().default("Score is based on criteria rubric calibration."),
+  specific_suggestions: z.array(z.string()).default([]),
+  missing_points: z.array(z.string()).default([]),
+  sample_answer: z.string().default(""),
+  filler_words_detected: z.array(z.string()).default([]),
+  follow_up_question: z.string().default("")
+});
+
+const ReportSchema = z.object({
+  final_score: z.number().int().min(0).max(100),
+  verdict: z.enum(["Ready", "Almost ready", "Needs practice"]).default("Needs practice"),
+  category_scores: z.record(z.string(), z.number()).default({}),
+  strengths: z.array(z.string()).min(1).default(["Good foundational understanding."]),
+  weaknesses: z.array(z.string()).min(1).default(["Elaborate more on practical application."]),
+  seven_day_plan: z.array(z.string()).min(1).default([
+    "Day 1: Practice self-introduction pitch focusing on academics and projects.",
+    "Day 2: Revise core programming fundamentals and data structures.",
+    "Day 3: Write out 2 college projects in the STAR format.",
+    "Day 4: Practice rapid conceptual questions on OOPs concepts.",
+    "Day 5: Rehearse situational questions on teamwork and deadlines.",
+    "Day 6: Conduct a mock timer-based interview to reduce filler words.",
+    "Day 7: Full mock round combining HR, Technical, and Situational questions."
+  ])
+});
+
 /**
- * Helper to call Gemini with SDK or HTTPS fallback and candidate model rotation
+ * Robust Gemini API Caller with candidate model rotation & recovery
  */
 async function callGeminiRaw(prompt, systemInstruction = "") {
   const apiKey = config.geminiApiKey;
@@ -16,7 +55,6 @@ async function callGeminiRaw(prompt, systemInstruction = "") {
   for (let i = 0; i < candidates.length; i++) {
     const candidateModel = candidates[i];
     try {
-      // Direct REST API fetch to generativelanguage.googleapis.com (guaranteed compatible across all Node versions)
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${apiKey}`;
       const payload = {
         contents: [
@@ -44,8 +82,7 @@ async function callGeminiRaw(prompt, systemInstruction = "") {
 
       if (!response.ok) {
         if (response.status === 404) {
-          // Model not found: try next candidate model immediately
-          console.warn(`[AI Service] Model ${candidateModel} returned 404. Trying next candidate...`);
+          console.warn(`[AI Service] Model ${candidateModel} returned 404. Switching to next candidate...`);
           continue;
         }
 
@@ -138,7 +175,13 @@ CRITICAL RULES:
   "sample_answer": "A strong, beginner-friendly 2-4 sentence benchmark answer"
 }`;
 
-  return await callGeminiRaw(prompt, systemInstruction);
+  const rawJson = await callGeminiRaw(prompt, systemInstruction);
+  return {
+    question: rawJson.question || "Explain a core concept you recently learned in engineering.",
+    type: rawJson.type || category,
+    tip: rawJson.tip || "Define clearly and offer an example.",
+    sample_answer: rawJson.sample_answer || ""
+  };
 }
 
 /**
@@ -148,13 +191,18 @@ async function evaluateAnswer(opts) {
   const {
     role = "Web Developer",
     difficulty = "Entry-level / Junior",
+    question = "",
     questionObj = {},
+    candidateAnswer = "",
     answer = "",
+    category = "Technical",
     isQuickFire = false,
-    previousQA = []
+    resumeSnippet = ""
   } = opts;
 
-  const rawAnswer = (answer || "").trim();
+  const actualQuestion = question || questionObj.question || "";
+  const actualCategory = category || questionObj.type || "Technical";
+  const rawAnswer = (candidateAnswer || answer || "").trim();
   const wordCount = rawAnswer ? rawAnswer.split(/\s+/).filter(Boolean).length : 0;
 
   // Handle skipped or empty answers locally
@@ -171,10 +219,16 @@ async function evaluateAnswer(opts) {
       },
       good: "None (No response was provided).",
       improve: "In a real interview, never leave a question unanswered. Attempting a fundamental definition gives the interviewer signal.",
+      why_this_score: "No substantive answer was provided.",
+      specific_suggestions: [
+        "State a basic definition of the concept.",
+        "Provide an everyday analogy or reference a coursework lab assignment."
+      ],
       missing_points: ["A clear direct definition of the core concept.", "An intuitive everyday analogy or college project example."],
       sample_answer: questionObj.sample_answer || "A strong answer starts with a direct definition and gives a simple practical example.",
       filler_words_detected: [],
-      follow_up_question: "Would you like to try defining this concept in your own words?"
+      follow_up_question: "Would you like to try defining this concept in your own words?",
+      capped_score_applied: false
     };
   }
 
@@ -184,14 +238,15 @@ Evaluate strictly on fresh-graduate standards. Do NOT award 8+ to vague, generic
   const prompt = `Evaluate the candidate's answer to the following interview question.
 Role: ${role}
 Difficulty: ${difficulty}
-Question: "${questionObj.question || ""}"
-Question Category: ${questionObj.type || "Technical"}
+Question: "${actualQuestion}"
+Question Category: ${actualCategory}
 Is Quick-Fire: ${isQuickFire}
 
 Candidate Answer:
 "${rawAnswer}"
 
 Word Count: ${wordCount}
+Resume/Projects Snippet Context: ${resumeSnippet ? resumeSnippet.slice(0, 800) : "None provided"}
 
 EVALUATE STRICTLY ACROSS 6 CRITERIA (Score each as integer 0, 1, or 2):
 1. relevance (0-2): Does the answer directly address the specific question without wandering?
@@ -219,6 +274,11 @@ Return ONLY a valid JSON object matching this schema:
   },
   "good": "<1-2 sentences on what the candidate did well>",
   "improve": "<1-2 sentences with concrete, actionable advice for a fresher>",
+  "why_this_score": "<1-2 sentences clearly explaining why this score was awarded according to the rubric>",
+  "specific_suggestions": [
+    "<Specific actionable improvement 1>",
+    "<Specific actionable improvement 2>"
+  ],
   "missing_points": [
     "<Key concept or detail the candidate missed 1>",
     "<Key concept or detail the candidate missed 2>"
@@ -228,22 +288,28 @@ Return ONLY a valid JSON object matching this schema:
   "follow_up_question": "<A relevant 1-sentence follow-up question probing deeper into this topic>"
 }`;
 
-  const result = await callGeminiRaw(prompt, systemInstruction);
+  const rawResult = await callGeminiRaw(prompt, systemInstruction);
+  const validated = EvaluationSchema.parse(rawResult);
 
   // Enforce Honest-Scoring Cap in code
   const isShort = isQuickFire ? (wordCount < 8) : (wordCount < 20);
-  let finalScore = typeof result.score === "number" ? result.score : 5;
+  let finalScore = validated.score;
   let scoreCapped = false;
+  let capReason = "";
 
   if (isShort && finalScore > 7) {
     finalScore = 7;
     scoreCapped = true;
+    capReason = isQuickFire
+      ? "Score capped at 7 because answer was under 8 words."
+      : "Score capped at 7 because answer was under 20 words.";
   }
 
   return {
-    ...result,
+    ...validated,
     score: finalScore,
-    scoreCapped
+    capped_score_applied: scoreCapped,
+    cap_reason: capReason
   };
 }
 
@@ -308,7 +374,8 @@ Return ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-  return await callGeminiRaw(prompt, systemInstruction);
+  const rawResult = await callGeminiRaw(prompt, systemInstruction);
+  return ReportSchema.parse(rawResult);
 }
 
 module.exports = {

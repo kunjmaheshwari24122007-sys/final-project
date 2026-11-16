@@ -1,10 +1,12 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const fs = require("fs");
 const config = require("./config");
 const { securityHeaders, sanitizeInputs, errorHandler } = require("./middleware/security");
 
+const authRoutes = require("./routes/authRoutes");
 const interviewRoutes = require("./routes/interviewRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
 const dataRoutes = require("./routes/dataRoutes");
@@ -12,13 +14,19 @@ const aiService = require("./services/aiService");
 
 const app = express();
 
-// Security and CORS
+// Security Headers
 app.use(securityHeaders);
+
+// CORS with credentials for HTTP-only cookies
 app.use(cors({
-  origin: "*",
+  origin: true,
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Cookie Parser
+app.use(cookieParser());
 
 // Body parsers with payload size limit
 app.use(express.json({ limit: "10mb" }));
@@ -33,22 +41,25 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     hasApiKey: !!config.geminiApiKey,
-    database: "connected"
+    database: "connected",
+    engine: "sqlite-relational"
   });
 });
 
-// Config Status (Without exposing the actual API key)
+// Config Status (Without exposing credentials)
 app.get("/api/config-status", (req, res) => {
   res.json({
     status: "ok",
     aiConfigured: !!config.geminiApiKey,
     currentModel: aiService.getActiveModel(),
     modelCandidates: config.modelCandidates,
-    database: "sqlite"
+    database: "sqlite",
+    authSupported: true
   });
 });
 
 // Mount Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api", dataRoutes);
@@ -70,15 +81,18 @@ if (fs.existsSync(path.join(rootDir, "index.html"))) {
 app.use(errorHandler);
 
 const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(`  InterviewAce AI - Production Full-Stack Server    `);
-  console.log(`====================================================`);
-  console.log(`  Local URL:        http://localhost:${PORT}`);
-  console.log(`  API Health:       http://localhost:${PORT}/api/health`);
-  console.log(`  Gemini Key:       ${config.geminiApiKey ? "Configured in .env" : "NOT CONFIGURED"}`);
-  console.log(`  Database:         SQLite Storage Active`);
-  console.log(`====================================================`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`====================================================`);
+    console.log(`  InterviewAce AI - Production Full-Stack Server    `);
+    console.log(`====================================================`);
+    console.log(`  Local URL:        http://localhost:${PORT}`);
+    console.log(`  API Health:       http://localhost:${PORT}/api/health`);
+    console.log(`  Auth Engine:      BCrypt + Secure HTTP-only Cookies`);
+    console.log(`  Gemini Key:       ${config.geminiApiKey ? "Configured in .env" : "NOT CONFIGURED"}`);
+    console.log(`  Database:         Relational SQLite Active`);
+    console.log(`====================================================`);
+  });
+}
 
 module.exports = app;

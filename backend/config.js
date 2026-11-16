@@ -5,16 +5,19 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
+  defaultModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   modelCandidates: [
-    "gemini-2.5-flash",
+    process.env.GEMINI_MODEL || "gemini-2.5-flash",
     "gemini-flash-latest",
     "gemini-3-flash-preview"
-  ],
-  defaultModel: "gemini-2.5-flash",
+  ].filter((v, i, a) => a.indexOf(v) === i),
+  sessionCookieName: "interviewace_session",
+  sessionSecret: process.env.SESSION_SECRET || "interviewace_fallback_secret_key_2026",
+  sessionDurationMs: 30 * 24 * 60 * 60 * 1000, // 30 days
   corsOrigins: process.env.CORS_ORIGIN || "*",
   rateLimitWindowMs: 60 * 1000,
-  rateLimitMax: 60,
-  aiRateLimitMax: 25,
+  rateLimitMax: 100,
+  aiRateLimitMax: 30,
   maxUploadSizeBytes: 5 * 1024 * 1024, // 5MB
   dbPath: path.join(__dirname, "data", "interviewace.db"),
   jsonBackupPath: path.join(__dirname, "data", "database.json")
