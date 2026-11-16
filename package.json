@@ -1,0 +1,11 @@
+{
+  "name": "interviewace-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Professional AI Interview Preparation Platform",
+  "scripts": {
+    "start": "node backend/server.js",
+    "server": "node backend/server.js",
+    "dev": "node backend/server.js"
+  }
+}

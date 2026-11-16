@@ -1,0 +1,319 @@
+const config = require("../config");
+
+let activeModel = config.defaultModel;
+
+/**
+ * Helper to call Gemini with SDK or HTTPS fallback and candidate model rotation
+ */
+async function callGeminiRaw(prompt, systemInstruction = "") {
+  const apiKey = config.geminiApiKey;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured in backend .env. Please configure your key.");
+  }
+
+  const candidates = [activeModel, ...config.modelCandidates.filter(m => m !== activeModel)];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const candidateModel = candidates[i];
+    try {
+      // Direct REST API fetch to generativelanguage.googleapis.com (guaranteed compatible across all Node versions)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      };
+
+      if (systemInstruction) {
+        payload.systemInstruction = {
+          parts: [{ text: systemInstruction }]
+        };
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Model not found: try next candidate model immediately
+          console.warn(`[AI Service] Model ${candidateModel} returned 404. Trying next candidate...`);
+          continue;
+        }
+
+        let errorDetails = "";
+        try {
+          const errData = await response.json();
+          errorDetails = errData?.error?.message || "";
+        } catch (_) {}
+
+        if (response.status === 400 || response.status === 403) {
+          throw new Error(`Invalid Gemini API Key (HTTP ${response.status}). Please check your key in backend .env.`);
+        } else if (response.status === 429) {
+          throw new Error("Gemini rate limit exceeded (HTTP 429). Please wait a moment before trying again.");
+        } else {
+          throw new Error(`Gemini API error (HTTP ${response.status}): ${response.statusText}${errorDetails ? " - " + errorDetails : ""}`);
+        }
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        throw new Error("Empty response received from Gemini.");
+      }
+
+      activeModel = candidateModel;
+      const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+      return JSON.parse(cleaned);
+
+    } catch (err) {
+      if (err.message && err.message.includes("404")) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error("No available Gemini model found. Please verify your Gemini API access in Google AI Studio.");
+}
+
+/**
+ * 1. Adaptive Interview Question Generator
+ */
+async function generateQuestion(opts) {
+  const {
+    role = "Web Developer",
+    difficulty = "Entry-level / Junior",
+    questionNumber = 1,
+    totalQuestions = 5,
+    category = "Technical",
+    isQuickFire = false,
+    companyType = "Product",
+    preferredTech = "",
+    previousQuestions = [],
+    previousAnswers = [],
+    resumeSnippet = ""
+  } = opts;
+
+  // Question 1 rule: always begin with self-introduction
+  if (questionNumber === 1 && !isQuickFire) {
+    return {
+      question: "Tell me about yourself, your educational background, and what sparked your interest in technology?",
+      type: "HR",
+      tip: "Give a crisp introduction covering your college, key technical interests, and projects you enjoy building.",
+      sample_answer: "I am a first-year B.Tech student passionate about web development and problem solving. Recently, I built a personal portfolio and a mini task app using HTML, CSS, and basic JavaScript. I enjoy learning modern web frameworks and am eager to apply my fundamentals in real projects."
+    };
+  }
+
+  const systemInstruction = `You are InterviewAce, a professional, rigorous, and friendly interview coach for engineering students and freshers in India.
+Target Role: ${role}
+Difficulty Level: ${difficulty}
+Company Type: ${companyType}
+Candidate Preferred Tech: ${preferredTech || "Standard fundamentals"}`;
+
+  const prompt = `Formulate Question #${questionNumber} of ${totalQuestions} for an interview round.
+Question Category: ${category}
+Is Quick-Fire Question: ${isQuickFire} (If true, ask a short, fundamental 1-line definition question suitable for a 60-second response).
+Previous Questions Asked So Far: ${JSON.stringify(previousQuestions)}
+Candidate Recent Answer Context: ${JSON.stringify(previousAnswers.slice(-2))}
+Candidate Resume & Project Context: ${resumeSnippet ? resumeSnippet.slice(0, 1000) : "None provided"}
+
+CRITICAL RULES:
+1. Do NOT repeat previous questions.
+2. If Category is "Resume-based", probe specifically into projects or technologies mentioned in the resume context without inventing qualifications.
+3. Never ask senior architecture questions (no microservices, Kafka, Redis, or distributed scaling for freshers). Focus strictly on fundamentals: HTML/CSS, basic JS, OOP concepts, SQL, core DSA, or teamwork.
+4. Return ONLY a valid JSON object matching this schema:
+{
+  "question": "The interview question text",
+  "type": "${category}",
+  "tip": "Short 1-sentence tip on what a strong candidate should emphasize",
+  "sample_answer": "A strong, beginner-friendly 2-4 sentence benchmark answer"
+}`;
+
+  return await callGeminiRaw(prompt, systemInstruction);
+}
+
+/**
+ * 2. Real AI 6-Criteria Answer Evaluator
+ */
+async function evaluateAnswer(opts) {
+  const {
+    role = "Web Developer",
+    difficulty = "Entry-level / Junior",
+    questionObj = {},
+    answer = "",
+    isQuickFire = false,
+    previousQA = []
+  } = opts;
+
+  const rawAnswer = (answer || "").trim();
+  const wordCount = rawAnswer ? rawAnswer.split(/\s+/).filter(Boolean).length : 0;
+
+  // Handle skipped or empty answers locally
+  if (!rawAnswer || rawAnswer.startsWith("[") || wordCount === 0) {
+    return {
+      score: 0,
+      criteria: {
+        relevance: 0,
+        accuracy: 0,
+        clarity: 0,
+        depth: 0,
+        structure: 0,
+        communication: 0
+      },
+      good: "None (No response was provided).",
+      improve: "In a real interview, never leave a question unanswered. Attempting a fundamental definition gives the interviewer signal.",
+      missing_points: ["A clear direct definition of the core concept.", "An intuitive everyday analogy or college project example."],
+      sample_answer: questionObj.sample_answer || "A strong answer starts with a direct definition and gives a simple practical example.",
+      filler_words_detected: [],
+      follow_up_question: "Would you like to try defining this concept in your own words?"
+    };
+  }
+
+  const systemInstruction = `You are InterviewAce AI, an honest and rubric-calibrated interview evaluator for engineering students and freshers.
+Evaluate strictly on fresh-graduate standards. Do NOT award 8+ to vague, generic, or incomplete answers. Judge substance over buzzwords.`;
+
+  const prompt = `Evaluate the candidate's answer to the following interview question.
+Role: ${role}
+Difficulty: ${difficulty}
+Question: "${questionObj.question || ""}"
+Question Category: ${questionObj.type || "Technical"}
+Is Quick-Fire: ${isQuickFire}
+
+Candidate Answer:
+"${rawAnswer}"
+
+Word Count: ${wordCount}
+
+EVALUATE STRICTLY ACROSS 6 CRITERIA (Score each as integer 0, 1, or 2):
+1. relevance (0-2): Does the answer directly address the specific question without wandering?
+2. accuracy (0-2): Are the technical facts, terminology, and definitions accurate?
+3. clarity (0-2): Is the explanation easy to follow and articulated simply?
+4. depth (0-2): Does it include key underlying concepts or a concrete project example?
+5. structure (0-2): Is there a logical sequence (definition -> explanation -> example)?
+6. communication (0-2): Confident, professional tone without excessive fillers or hesitation.
+
+HONEST SCORING RULES:
+- If the answer has fewer than 20 words (fewer than 8 for quick-fire), cap total score at 7 maximum.
+- Do NOT invent candidate achievements.
+- Distinguish factual correctness from speaking style.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "score": <total score integer 0-10 based on criteria sum>,
+  "criteria": {
+    "relevance": <0-2>,
+    "accuracy": <0-2>,
+    "clarity": <0-2>,
+    "depth": <0-2>,
+    "structure": <0-2>,
+    "communication": <0-2>
+  },
+  "good": "<1-2 sentences on what the candidate did well>",
+  "improve": "<1-2 sentences with concrete, actionable advice for a fresher>",
+  "missing_points": [
+    "<Key concept or detail the candidate missed 1>",
+    "<Key concept or detail the candidate missed 2>"
+  ],
+  "sample_answer": "<A strong, clear 2-4 sentence benchmark answer>",
+  "filler_words_detected": ["um", "like"],
+  "follow_up_question": "<A relevant 1-sentence follow-up question probing deeper into this topic>"
+}`;
+
+  const result = await callGeminiRaw(prompt, systemInstruction);
+
+  // Enforce Honest-Scoring Cap in code
+  const isShort = isQuickFire ? (wordCount < 8) : (wordCount < 20);
+  let finalScore = typeof result.score === "number" ? result.score : 5;
+  let scoreCapped = false;
+
+  if (isShort && finalScore > 7) {
+    finalScore = 7;
+    scoreCapped = true;
+  }
+
+  return {
+    ...result,
+    score: finalScore,
+    scoreCapped
+  };
+}
+
+/**
+ * 3. Comprehensive Post-Interview Diagnostic & 7-Day Plan
+ */
+async function generateFinalReport(opts) {
+  const {
+    role = "Web Developer",
+    difficulty = "Entry-level / Junior",
+    questionsAndAnswers = []
+  } = opts;
+
+  const interviewTranscript = questionsAndAnswers
+    .map((qa, i) => `Q${i + 1} (${qa.type}): ${qa.question}\nCandidate Answer: ${qa.answer}\nScore: ${qa.score}/10`)
+    .join("\n\n");
+
+  const systemInstruction = `You are InterviewAce AI, synthesizing a full diagnostic assessment and personalized 7-day preparation roadmap for a first-year engineering student.`;
+
+  const prompt = `Analyze this complete interview session:
+Target Role: ${role}
+Difficulty: ${difficulty}
+
+Full Interview Transcript:
+${interviewTranscript}
+
+Provide a comprehensive assessment:
+1. Overall score (0-100 scale).
+2. Verdict: "Ready" (75-100), "Almost ready" (50-74), or "Needs practice" (<50).
+3. Exactly 3 distinct strengths observed in their answers.
+4. Exactly 3 actionable areas for improvement.
+5. A personalized 7-day revision plan with 1 concrete, actionable 30-minute mini task per day addressing the candidate's actual mistakes in this session.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "final_score": <integer 0-100>,
+  "verdict": "<Ready|Almost ready|Needs practice>",
+  "category_scores": {
+    "HR": <average 0-100>,
+    "Technical": <average 0-100>,
+    "Behavioral": <average 0-100>,
+    "Situational": <average 0-100>
+  },
+  "strengths": [
+    "<Strength 1>",
+    "<Strength 2>",
+    "<Strength 3>"
+  ],
+  "weaknesses": [
+    "<Weakness 1>",
+    "<Weakness 2>",
+    "<Weakness 3>"
+  ],
+  "seven_day_plan": [
+    "Day 1: <Concrete 30-min revision task>",
+    "Day 2: <Concrete 30-min revision task>",
+    "Day 3: <Concrete 30-min revision task>",
+    "Day 4: <Concrete 30-min revision task>",
+    "Day 5: <Concrete 30-min revision task>",
+    "Day 6: <Concrete 30-min revision task>",
+    "Day 7: <Concrete 30-min revision task>"
+  ]
+}`;
+
+  return await callGeminiRaw(prompt, systemInstruction);
+}
+
+module.exports = {
+  generateQuestion,
+  evaluateAnswer,
+  generateFinalReport,
+  getActiveModel: () => activeModel
+};
