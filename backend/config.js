@@ -15,7 +15,17 @@ if (fs.existsSync(rootEnvPath)) {
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
-  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  get geminiApiKey() {
+    // Always check backend/.env first to immediately reflect key updates without server restart
+    try {
+      const p = path.join(__dirname, ".env");
+      if (fs.existsSync(p)) {
+        const parsed = dotenv.parse(fs.readFileSync(p, "utf-8"));
+        if (parsed.GEMINI_API_KEY) return parsed.GEMINI_API_KEY.trim();
+      }
+    } catch (_) {}
+    return (process.env.GEMINI_API_KEY || "").trim();
+  },
   defaultModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   modelCandidates: [
     process.env.GEMINI_MODEL || "gemini-2.5-flash",

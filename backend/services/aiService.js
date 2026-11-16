@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { GoogleGenAI } = require("@google/genai");
 const config = require("../config");
 
 let activeModel = config.defaultModel;
@@ -41,85 +42,140 @@ const ReportSchema = z.object({
   ])
 });
 
-/**
- * Robust Gemini API Caller with candidate model rotation & recovery
- */
-async function callGeminiRaw(prompt, systemInstruction = "") {
+// Centralized Gemini Client Cache
+let cachedClient = null;
+let cachedKey = null;
+
+function getGeminiClient() {
   const apiKey = config.geminiApiKey;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in backend .env. Please configure your key.");
+    const err = new Error("GEMINI_API_KEY is not configured in backend/.env. Please configure your key.");
+    err.status = 500;
+    throw err;
   }
+  if (!cachedClient || cachedKey !== apiKey) {
+    cachedClient = new GoogleGenAI({ apiKey });
+    cachedKey = apiKey;
+  }
+  return { ai: cachedClient, apiKey };
+}
 
+function createGeminiError(statusCode, clientMessage, originalError, modelName) {
+  const err = new Error(clientMessage);
+  err.status = statusCode;
+  err.details = {
+    httpStatus: statusCode,
+    model: modelName,
+    googleMessage: originalError?.message || clientMessage,
+    googleStatus: originalError?.status || statusCode,
+    keyConfigured: !!config.geminiApiKey
+  };
+  return err;
+}
+
+/**
+ * Robust Gemini API Caller using the official @google/genai SDK
+ * with candidate model rotation & recovery
+ */
+async function callGeminiRaw(prompt, systemInstruction = "") {
+  const { ai, apiKey } = getGeminiClient();
   const candidates = [activeModel, ...config.modelCandidates.filter(m => m !== activeModel)];
 
   for (let i = 0; i < candidates.length; i++) {
     const candidateModel = candidates[i];
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: candidateModel,
+        contents: prompt,
+        config: {
           temperature: 0.2,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          systemInstruction: systemInstruction || undefined
         }
-      };
-
-      if (systemInstruction) {
-        payload.systemInstruction = {
-          parts: [{ text: systemInstruction }]
-        };
-      }
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`[AI Service] Model ${candidateModel} returned 404. Switching to next candidate...`);
-          continue;
-        }
-
-        let errorDetails = "";
-        try {
-          const errData = await response.json();
-          errorDetails = errData?.error?.message || "";
-        } catch (_) {}
-
-        if (response.status === 400 || response.status === 403) {
-          throw new Error(`Invalid Gemini API Key (HTTP ${response.status}). Please check your key in backend .env.`);
-        } else if (response.status === 429) {
-          throw new Error("Gemini rate limit exceeded (HTTP 429). Please wait a moment before trying again.");
-        } else {
-          throw new Error(`Gemini API error (HTTP ${response.status}): ${response.statusText}${errorDetails ? " - " + errorDetails : ""}`);
-        }
-      }
-
-      const data = await response.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawText = response.text || response?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) {
         throw new Error("Empty response received from Gemini.");
       }
 
       activeModel = candidateModel;
-      const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+      const cleaned = rawText
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
       return JSON.parse(cleaned);
 
     } catch (err) {
-      if (err.message && err.message.includes("404")) {
+      let statusCode = err.status || 500;
+      let errMsg = err.message || "";
+      try {
+        const parsed = JSON.parse(errMsg);
+        if (parsed.error) {
+          statusCode = parsed.error.code || statusCode;
+          errMsg = parsed.error.message || errMsg;
+        }
+      } catch (_) {}
+
+      // If model not found (404), rotate to next candidate model
+      if (statusCode === 404 || errMsg.toLowerCase().includes("not found")) {
+        console.warn(`[AI Service] Model ${candidateModel} returned 404/not found. Trying next candidate...`);
         continue;
       }
-      throw err;
+
+      // Format accurate, actionable error messages with proper HTTP status codes
+      if (statusCode === 403 && errMsg.includes("free tier is not available for this project")) {
+        throw createGeminiError(
+          403,
+          "Gemini API Error (HTTP 403 Forbidden): The Gemini API free tier is not available for this project. " +
+          "To resolve this, either upgrade your project at https://aistudio.google.com/billing or go to https://aistudio.google.com " +
+          "and click 'Create API key in new project' using a personal Google account, then paste the new key into backend/.env.",
+          err,
+          candidateModel
+        );
+      } else if (statusCode === 403) {
+        throw createGeminiError(
+          403,
+          `Gemini API Error (HTTP 403 Forbidden): Access denied by Google Gemini API. ${errMsg}`,
+          err,
+          candidateModel
+        );
+      } else if (statusCode === 400 && (errMsg.includes("API key not valid") || errMsg.includes("API_KEY_INVALID"))) {
+        throw createGeminiError(
+          400,
+          "Gemini API Error (HTTP 400 Invalid Key): API key is invalid or unrecognized. Please check GEMINI_API_KEY in backend/.env.",
+          err,
+          candidateModel
+        );
+      } else if (statusCode === 401) {
+        throw createGeminiError(
+          401,
+          "Gemini API Error (HTTP 401 Unauthorized): API key is not authorized. Please verify GEMINI_API_KEY in backend/.env.",
+          err,
+          candidateModel
+        );
+      } else if (statusCode === 429) {
+        throw createGeminiError(
+          429,
+          "Gemini API rate limit exceeded (HTTP 429). Please wait a moment before trying again.",
+          err,
+          candidateModel
+        );
+      } else {
+        throw createGeminiError(
+          statusCode,
+          `Gemini API Error (HTTP ${statusCode}): ${errMsg}`,
+          err,
+          candidateModel
+        );
+      }
     }
   }
 
-  throw new Error("No available Gemini model found. Please verify your Gemini API access in Google AI Studio.");
+  const err = new Error("No available Gemini model found. Please verify your Gemini API access in Google AI Studio.");
+  err.status = 503;
+  throw err;
 }
 
 /**
@@ -379,15 +435,110 @@ Return ONLY a valid JSON object matching this schema:
 }
 
 /**
- * Test Gemini API connection with a lightweight ping
+ * Test Gemini API connection with a comprehensive, safe probe
+ * Checks key configuration, Google Generative Language API authentication,
+ * and content generation permissions without leaking credentials.
  */
 async function testConnection() {
-  if (!config.geminiApiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in backend/.env.");
+  const apiKey = config.geminiApiKey;
+  if (!apiKey) {
+    return {
+      success: false,
+      verified: false,
+      keyConfigured: false,
+      error: "GEMINI_API_KEY is not configured in backend/.env."
+    };
   }
-  const prompt = "Respond with JSON: {\"status\": \"ok\", \"verified\": true}";
-  const raw = await callGeminiRaw(prompt);
-  return { ok: true, model: activeModel, result: raw };
+
+  const maskedKey = apiKey.length > 10
+    ? apiKey.slice(0, 7) + "..." + apiKey.slice(-4)
+    : "***";
+
+  // Step 1: Probe Google's model catalog endpoint to verify key validity and network reachability
+  let modelsListOk = false;
+  let availableModels = [];
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      modelsListOk = true;
+      availableModels = (listData.models || []).slice(0, 5).map(m => m.name.replace("models/", ""));
+    }
+  } catch (netErr) {
+    return {
+      success: false,
+      verified: false,
+      keyConfigured: true,
+      maskedKey,
+      error: `Network error connecting to Gemini API: ${netErr.message}`
+    };
+  }
+
+  // Step 2: Probe generation with activeModel using @google/genai SDK
+  try {
+    const prompt = "Respond with JSON: {\"status\": \"ok\", \"verified\": true}";
+    const raw = await callGeminiRaw(prompt);
+    return {
+      success: true,
+      verified: true,
+      keyConfigured: true,
+      maskedKey,
+      model: activeModel,
+      availableModels,
+      result: raw,
+      message: `Gemini API verified and operational with model ${activeModel}.`
+    };
+  } catch (genErr) {
+    return {
+      success: false,
+      verified: false,
+      keyConfigured: true,
+      maskedKey,
+      authVerified: modelsListOk,
+      model: activeModel,
+      error: genErr.message,
+      troubleshooting: modelsListOk
+        ? "API key is recognized by Google, but content generation failed. See the error details above."
+        : "API key could not be authenticated by Google. Please verify your key."
+    };
+  }
+}
+
+let quickStatusCache = {
+  keyConfigured: false,
+  authVerified: false,
+  generationOk: false,
+  error: null,
+  testedKey: null,
+  testedAt: 0
+};
+
+async function getQuickStatus() {
+  const apiKey = config.geminiApiKey;
+  if (!apiKey) {
+    return {
+      keyConfigured: false,
+      authVerified: false,
+      generationOk: false,
+      error: "GEMINI_API_KEY is not configured in backend/.env."
+    };
+  }
+
+  const now = Date.now();
+  if (quickStatusCache.testedKey === apiKey && (now - quickStatusCache.testedAt < 30000)) {
+    return quickStatusCache;
+  }
+
+  const testRes = await testConnection();
+  quickStatusCache = {
+    keyConfigured: true,
+    authVerified: !!testRes.authVerified || !!testRes.verified,
+    generationOk: !!testRes.verified,
+    error: testRes.error || null,
+    testedKey: apiKey,
+    testedAt: now
+  };
+  return quickStatusCache;
 }
 
 module.exports = {
@@ -395,5 +546,6 @@ module.exports = {
   evaluateAnswer,
   generateFinalReport,
   testConnection,
+  getQuickStatus,
   getActiveModel: () => activeModel
 };

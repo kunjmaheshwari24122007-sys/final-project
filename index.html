@@ -5476,14 +5476,14 @@
         if (res.ok) {
           const data = await res.json();
           state.backendConnected = true;
-          state.backendAiReady = !!data.aiConfigured;
+          state.backendAiReady = !!data.aiOperational;
           state.backendModel = data.currentModel || "gemini-2.5-flash";
           if (data.currentModel) GEMINI_MODEL = data.currentModel;
 
-          if (data.aiConfigured) {
+          if (data.aiOperational) {
             if (dot) dot.style.background = "var(--color-score-good)";
-            if (title) title.textContent = "AI Engine: Connected via Secure Backend";
-            if (sub) sub.textContent = `Model: ${state.backendModel} · Server-managed credentials · SQLite active`;
+            if (title) title.textContent = "AI Engine: Connected & Live via Secure Backend";
+            if (sub) sub.textContent = `Model: ${state.backendModel} · Server-managed credentials · Live AI Active`;
             if (badge) {
               badge.textContent = "Backend AI Ready";
               badge.style.color = "var(--color-score-good)";
@@ -5491,13 +5491,34 @@
               badge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (profBadge) {
-              profBadge.textContent = "Connected (AI Engine Active)";
+              profBadge.textContent = "Connected (Live AI Active)";
               profBadge.style.color = "var(--color-score-good)";
               profBadge.style.background = "rgba(79, 122, 74, 0.12)";
               profBadge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (profDetails) {
-              profDetails.textContent = `Connected at ${API_BASE || 'localhost:5000'}. Active model: ${state.backendModel}. Zero client key exposure.`;
+              profDetails.textContent = `Connected at ${API_BASE || 'localhost:5000'}. Active model: ${state.backendModel}. Live generation operational.`;
+            }
+          } else if (data.aiConfigured) {
+            if (dot) dot.style.background = "var(--color-score-medium)";
+            if (title) title.textContent = "Backend Online (Gemini Key Issue Detected)";
+            if (sub) {
+              sub.textContent = data.authVerified
+                ? "Key authenticated, but Google Cloud project is restricted (HTTP 403). Practice in Demo mode or check billing at aistudio.google.com/billing."
+                : "Google rejected the key in backend/.env (HTTP 401). Running in calibrated Demo mode so your practice is never blocked.";
+            }
+            if (badge) {
+              badge.textContent = data.authVerified ? "Project Restricted" : "Invalid Key";
+              badge.style.color = "var(--color-score-medium)";
+              badge.style.background = "rgba(201, 138, 27, 0.12)";
+              badge.style.borderColor = "rgba(201, 138, 27, 0.3)";
+            }
+            if (profBadge) {
+              profBadge.textContent = "Connected (Key Setup Needed)";
+              profBadge.style.color = "var(--color-score-medium)";
+            }
+            if (profDetails) {
+              profDetails.textContent = `Server responding at ${API_BASE || 'localhost:5000'}. Key in .env rejected by Google Cloud. Demo mode is active.`;
             }
           } else {
             if (dot) dot.style.background = "var(--color-score-medium)";
@@ -7257,15 +7278,17 @@
           } else {
             state.backendConnected = true;
             state.backendAiReady = false;
-            resultBox.innerHTML = `⚠️ <strong>Server Connected, but Gemini Key was rejected:</strong><br>${escapeHtml(testData.error || 'Invalid API Key')}<br><span style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;display:block;">Tip: Google AI Studio developer keys start with <code>AIzaSy...</code>. Update <code>GEMINI_API_KEY</code> in <code>backend/.env</code>. Instant Demo Mode is active.</span>`;
+            resultBox.innerHTML = `⚠️ <strong>Server Connected, but Gemini API error occurred:</strong><br>${escapeHtml(testData.error || 'Invalid API Key')}<br><span style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;display:block;">Tip: Google AI Studio keys start with <code>AIzaSy...</code> or <code>AQ.Ab...</code>. If your project has free-tier restrictions, create a key in a new project in Google AI Studio or set up billing at <a href="https://aistudio.google.com/billing" target="_blank" style="color:var(--color-rust);text-decoration:underline;">aistudio.google.com/billing</a>. Update <code>GEMINI_API_KEY</code> in <code>backend/.env</code>.</span>`;
             resultBox.style.color = "var(--color-score-medium)";
             if (badge) {
-              badge.textContent = "Connected (Invalid Key)";
+              badge.textContent = testData.authVerified ? "Connected (Key Restricted)" : "Connected (Invalid Key)";
               badge.style.background = "rgba(201, 138, 27, 0.12)";
               badge.style.color = "var(--color-score-medium)";
             }
             if (details) {
-              details.textContent = `Backend online, but Google Generative AI rejected the key. Fallback to Instant Demo mode active.`;
+              details.textContent = testData.authVerified
+                ? "Backend online and key authenticated by Google, but project generation is restricted. Check billing or AI Studio project."
+                : "Backend online, but Google Generative AI rejected the key.";
             }
           }
           updateApiStatusBadge();
@@ -7345,12 +7368,20 @@
               continue;
             } else {
               all404 = false;
-              if (response.status === 400 || response.status === 403) {
-                resultBox.textContent = `✕ Invalid API key (${response.status}). Please check your key from Google AI Studio.`;
+              let errDetail = "";
+              try {
+                const errData = await response.json();
+                if (errData && errData.error && errData.error.message) errDetail = errData.error.message;
+              } catch (_) {}
+
+              if (response.status === 403 && errDetail.includes("free tier is not available for this project")) {
+                resultBox.innerHTML = `✕ <strong>Gemini Free Tier Disabled (403):</strong> The Google Cloud project linked to this key does not support the free tier. Upgrade at <a href="https://aistudio.google.com/billing" target="_blank" style="color:var(--color-rust);text-decoration:underline;">aistudio.google.com/billing</a> or create a key in a new project in Google AI Studio.`;
+              } else if (response.status === 400 || response.status === 403) {
+                resultBox.textContent = `✕ Gemini API access error (${response.status}): ${errDetail || response.statusText || "Request rejected"}`;
               } else if (response.status === 429) {
                 resultBox.textContent = "✕ Rate limit exceeded (429). The key is valid but quota is exhausted.";
               } else {
-                resultBox.textContent = `✕ Gemini API error (${response.status}): ${response.statusText || "Request rejected"}`;
+                resultBox.textContent = `✕ Gemini API error (${response.status}): ${errDetail || response.statusText || "Request rejected"}`;
               }
               resultBox.style.color = "var(--color-score-bad)";
               resultBox.style.background = "var(--bg-surface-alt)";
@@ -8731,8 +8762,10 @@ Return ONLY a valid JSON object matching this schema:
               } catch (e) {}
 
               let errMsg = "";
-              if (response.status === 400 || response.status === 403) {
-                errMsg = `Invalid Gemini API Key (HTTP ${response.status}: ${response.statusText}).${errorDetails ? " " + errorDetails : " Please check your API key in Settings."}`;
+              if (response.status === 403 && errorDetails && errorDetails.includes("free tier is not available for this project")) {
+                errMsg = `Gemini API Error (HTTP 403): The Gemini API free tier is not available for this project. Upgrade at aistudio.google.com/billing or create an API key in a new project in Google AI Studio.`;
+              } else if (response.status === 400 || response.status === 403) {
+                errMsg = `Gemini API Error (HTTP ${response.status}: ${response.statusText}).${errorDetails ? " " + errorDetails : " Please check your API key."}`;
               } else if (response.status === 429) {
                 errMsg = `Gemini rate limit exceeded (HTTP 429).${errorDetails ? " " + errorDetails : " Please wait a moment or try again later."}`;
               } else {

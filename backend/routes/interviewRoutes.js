@@ -53,12 +53,7 @@ router.post("/generate-report", aiLimiter, async (req, res, next) => {
 router.get("/test-connection", async (req, res) => {
   try {
     const testResult = await aiService.testConnection();
-    res.json({
-      success: true,
-      verified: true,
-      model: testResult.model,
-      message: `Gemini API verified successfully using model ${testResult.model}.`
-    });
+    res.json(testResult);
   } catch (err) {
     res.status(200).json({
       success: false,

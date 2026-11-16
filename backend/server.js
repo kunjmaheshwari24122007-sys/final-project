@@ -46,16 +46,34 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Config Status (Without exposing credentials)
-app.get("/api/config-status", (req, res) => {
-  res.json({
-    status: "ok",
-    aiConfigured: !!config.geminiApiKey,
-    currentModel: aiService.getActiveModel(),
-    modelCandidates: config.modelCandidates,
-    database: "sqlite",
-    authSupported: true
-  });
+// Config Status with dynamic operational probe (Without exposing credentials)
+app.get("/api/config-status", async (req, res) => {
+  try {
+    const quickStatus = await aiService.getQuickStatus();
+    res.json({
+      status: "ok",
+      aiConfigured: quickStatus.keyConfigured,
+      aiOperational: quickStatus.generationOk,
+      authVerified: quickStatus.authVerified,
+      aiError: quickStatus.error,
+      currentModel: aiService.getActiveModel(),
+      modelCandidates: config.modelCandidates,
+      database: "sqlite",
+      authSupported: true
+    });
+  } catch (err) {
+    res.json({
+      status: "ok",
+      aiConfigured: !!config.geminiApiKey,
+      aiOperational: false,
+      authVerified: false,
+      aiError: err.message,
+      currentModel: aiService.getActiveModel(),
+      modelCandidates: config.modelCandidates,
+      database: "sqlite",
+      authSupported: true
+    });
+  }
 });
 
 // Mount Routes

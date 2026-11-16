@@ -81,17 +81,26 @@ function sanitizeInputs(req, res, next) {
 
 // Safe error handler that never leaks credentials
 function errorHandler(err, req, res, next) {
-  console.error("[InterviewAce Backend Error]", err.message || err);
-  const status = err.status || 500;
+  const status = (typeof err.status === "number" && err.status >= 400 && err.status < 600)
+    ? err.status
+    : 500;
   let clientMessage = err.message || "An unexpected error occurred.";
 
   // Sanitize internal error messages so API keys are never leaked
-  if (clientMessage.includes(config.geminiApiKey) && config.geminiApiKey) {
+  if (config.geminiApiKey && clientMessage.includes(config.geminiApiKey)) {
     clientMessage = clientMessage.replaceAll(config.geminiApiKey, "[REDACTED_API_KEY]");
   }
 
+  console.error(`[InterviewAce Backend Error] [HTTP ${status}]`, clientMessage);
+
   res.status(status).json({
-    error: clientMessage
+    error: clientMessage,
+    status: status,
+    details: err.details ? {
+      httpStatus: err.details.httpStatus,
+      model: err.details.model,
+      keyConfigured: err.details.keyConfigured
+    } : undefined
   });
 }
 
