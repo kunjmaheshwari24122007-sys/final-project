@@ -3,9 +3,20 @@
   "version": "2.0.0",
   "private": true,
   "description": "Professional AI Interview Preparation Platform",
+  "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
     "server": "node backend/server.js",
-    "dev": "node backend/server.js"
+    "dev": "node backend/server.js",
+    "install:all": "npm install && npm install --prefix backend"
+  },
+  "dependencies": {
+    "@google/genai": "^3.3.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "zod": "^4.6.7"
   }
 }
