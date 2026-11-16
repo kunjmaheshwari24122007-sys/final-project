@@ -2423,6 +2423,50 @@
       box-shadow: var(--shadow-soft);
     }
 
+    /* Compact Auth Modal Layout to fit standard laptop screens without scrolling */
+    #authModal .modal-dialog {
+      max-width: 440px;
+      padding: 20px 24px 16px;
+      max-height: 94vh;
+      overflow-y: auto;
+    }
+
+    #authModal .form-group {
+      margin-bottom: 10px !important;
+    }
+
+    #authModal .form-group label {
+      font-size: 0.8rem;
+      margin-bottom: 3px;
+      font-weight: 600;
+      display: block;
+    }
+
+    #authModal .form-input,
+    #authModal .form-select {
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      border-radius: var(--radius-sm);
+      height: 38px;
+    }
+
+    #authModal .auth-tabs {
+      margin-bottom: 14px;
+      padding: 3px;
+    }
+
+    #authModal .auth-tab-btn {
+      padding: 6px 10px;
+      font-size: 0.84rem;
+    }
+
+    #authModal .auth-alert-error,
+    #authModal .auth-alert-success {
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      margin-bottom: 12px;
+    }
+
     .auth-alert-error {
       display: flex;
       align-items: center;
@@ -5290,68 +5334,51 @@
 
   <!-- Authentication Modal (Sign In / Register) -->
   <div class="modal-backdrop" id="authModal" onclick="closeAuthModal(event)">
-    <div class="modal-dialog" style="max-width: 440px;" onclick="event.stopPropagation()">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
       <button class="modal-close-btn" onclick="closeAuthModal()" title="Close">✕</button>
       
-      <div style="text-align: center; margin-bottom: 20px;">
-        <div class="brand-icon-box" style="margin: 0 auto 12px; width: 44px; height: 44px;">
-          <svg viewBox="0 0 24 24" style="width: 26px; height: 26px;">
+      <div style="text-align: center; margin-bottom: 12px;">
+        <div class="brand-icon-box" style="margin: 0 auto 8px; width: 36px; height: 36px;">
+          <svg viewBox="0 0 24 24" style="width: 22px; height: 22px;">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
         </div>
-        <h3 style="font-family: var(--font-heading); font-size: 1.5rem; margin-bottom: 4px;" id="authModalTitle">Welcome to InterviewAce</h3>
-        <p style="font-size: 0.88rem; color: var(--text-secondary);" id="authModalSubtitle">Sign in or create an account to save your interview progress</p>
+        <h3 style="font-family: var(--font-heading); font-size: 1.35rem; margin-bottom: 2px;" id="authModalTitle">Create Your Account</h3>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;" id="authModalSubtitle">Start practicing and save your scores &amp; personalized plan</p>
       </div>
 
       <!-- Auth Tabs -->
       <div class="auth-tabs">
-        <button type="button" class="auth-tab-btn active" id="authTabLogin" onclick="switchAuthTab('login')">Log In</button>
-        <button type="button" class="auth-tab-btn" id="authTabRegister" onclick="switchAuthTab('register')">Create Account</button>
+        <button type="button" class="auth-tab-btn active" id="authTabRegister" onclick="switchAuthTab('register')">Create Account</button>
+        <button type="button" class="auth-tab-btn" id="authTabLogin" onclick="switchAuthTab('login')">Log In</button>
       </div>
 
       <!-- Error and Success Banners -->
       <div id="authModalError" class="auth-alert-error" style="display: none;"></div>
       <div id="authModalSuccess" class="auth-alert-success" style="display: none;"></div>
 
-      <!-- Login Form -->
-      <div id="loginFormContainer">
-        <form id="loginForm" onsubmit="handleLoginFormSubmit(event)">
-          <div class="form-group" style="margin-bottom: 14px;">
-            <label for="loginEmail">Email Address</label>
-            <input type="email" id="loginEmail" class="form-input" required placeholder="name@college.edu" autocomplete="email">
-          </div>
-          <div class="form-group" style="margin-bottom: 18px;">
-            <label for="loginPassword">Password</label>
-            <input type="password" id="loginPassword" class="form-input" required placeholder="Enter your password" autocomplete="current-password">
-          </div>
-          <button type="submit" class="btn btn-primary" id="loginSubmitBtn" style="width: 100%; justify-content: center; padding: 12px;">
-            <span id="loginSubmitText">Sign In</span>
-          </button>
-        </form>
-      </div>
-
-      <!-- Register Form -->
-      <div id="registerFormContainer" style="display: none;">
+      <!-- Register Form (Default) -->
+      <div id="registerFormContainer" style="display: block;">
         <form id="registerForm" onsubmit="handleRegisterFormSubmit(event)">
-          <div class="form-group" style="margin-bottom: 12px;">
+          <div class="form-group">
             <label for="regName">Full Name</label>
             <input type="text" id="regName" class="form-input" required placeholder="Rahul Sharma" maxlength="50" autocomplete="name">
           </div>
-          <div class="form-group" style="margin-bottom: 12px;">
+          <div class="form-group">
             <label for="regEmail">Email Address</label>
-            <input type="email" id="regEmail" class="form-input" required placeholder="name@college.edu" autocomplete="email">
+            <input type="email" id="regEmail" class="form-input" required placeholder="name@example.com" autocomplete="email">
           </div>
-          <div class="form-group" style="margin-bottom: 12px;">
+          <div class="form-group">
             <label for="regPassword">Password</label>
             <input type="password" id="regPassword" class="form-input" required placeholder="At least 8 characters" minlength="8" autocomplete="new-password">
-            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">Must be at least 8 characters</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; display: block;">Must be at least 8 characters</span>
           </div>
-          <div class="form-row" style="margin-bottom: 18px;">
-            <div class="form-group">
+          <div class="form-row" style="margin-bottom: 12px; gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0 !important;">
               <label for="regBranch">Branch (Optional)</label>
               <input type="text" id="regBranch" class="form-input" placeholder="Computer Science">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 0 !important;">
               <label for="regYear">Year (Optional)</label>
               <select id="regYear" class="form-select">
                 <option value="1st Year">1st Year</option>
@@ -5361,14 +5388,31 @@
               </select>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" id="registerSubmitBtn" style="width: 100%; justify-content: center; padding: 12px;">
+          <button type="submit" class="btn btn-primary" id="registerSubmitBtn" style="width: 100%; justify-content: center; padding: 10px 16px; margin-top: 4px;">
             <span id="registerSubmitText">Create Free Account</span>
           </button>
         </form>
       </div>
 
-      <div style="text-align: center; margin-top: 16px;">
-        <button type="button" onclick="closeAuthModal()" style="background: none; border: none; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;">
+      <!-- Login Form -->
+      <div id="loginFormContainer" style="display: none;">
+        <form id="loginForm" onsubmit="handleLoginFormSubmit(event)">
+          <div class="form-group">
+            <label for="loginEmail">Email Address</label>
+            <input type="email" id="loginEmail" class="form-input" required placeholder="name@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-input" required placeholder="Enter your password" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary" id="loginSubmitBtn" style="width: 100%; justify-content: center; padding: 10px 16px; margin-top: 4px;">
+            <span id="loginSubmitText">Sign In</span>
+          </button>
+        </form>
+      </div>
+
+      <div style="text-align: center; margin-top: 12px;">
+        <button type="button" onclick="closeAuthModal()" style="background: none; border: none; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;">
           Continue as Guest
         </button>
       </div>
@@ -5621,8 +5665,12 @@
      */
     async function checkAuthStatus() {
       try {
+        const token = localStorage.getItem("interviewace_auth_token") || "";
         const res = await fetch(`${API_BASE}/api/auth/me`, {
           credentials: "include",
+          headers: {
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
           signal: AbortSignal.timeout(3500)
         });
         if (res.ok) {
@@ -5744,7 +5792,7 @@
     /**
      * Auth Modal Operations
      */
-    function openAuthModal(tab = "login") {
+    function openAuthModal(tab = "register") {
       closeUserDropdown();
       const modal = document.getElementById("authModal");
       if (!modal) return;
@@ -5807,25 +5855,43 @@
       const submitText = document.getElementById("loginSubmitText");
 
       if (errEl) errEl.style.display = "none";
+      if (!email || !email.includes("@")) {
+        if (errEl) {
+          errEl.textContent = "Please enter a valid email address.";
+          errEl.style.display = "flex";
+        }
+        return;
+      }
+
       if (submitBtn) submitBtn.disabled = true;
       if (submitText) submitText.textContent = "Signing In...";
 
       try {
+        const token = localStorage.getItem("interviewace_auth_token") || "";
         const res = await fetch(`${API_BASE}/api/auth/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
           credentials: "include",
           body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
           throw new Error(data.error || "Login failed. Please check your email and password.");
+        }
+
+        if (data.token) {
+          try {
+            localStorage.setItem("interviewace_auth_token", data.token);
+          } catch (_) {}
         }
 
         state.currentUser = data.user;
         updateAuthUI(true);
 
-        if (data.user.profile) {
+        if (data.user && data.user.profile) {
           const prof = loadProfile();
           saveProfile({ ...prof, ...data.user.profile, name: data.user.name || prof.name });
         }
@@ -5839,8 +5905,13 @@
         renderProfilePage();
         updateNavbarAvatar();
       } catch (err) {
+        console.error("Login error:", err);
         if (errEl) {
-          errEl.textContent = err.message || "Failed to log in. Please try again.";
+          let msg = err.message || "Failed to log in. Please try again.";
+          if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+            msg = "Cannot connect to server. Please ensure the backend is running at http://localhost:5000.";
+          }
+          errEl.textContent = msg;
           errEl.style.display = "flex";
         }
       } finally {
@@ -5864,6 +5935,20 @@
       const submitText = document.getElementById("registerSubmitText");
 
       if (errEl) errEl.style.display = "none";
+      if (!name || name.length < 2) {
+        if (errEl) {
+          errEl.textContent = "Please enter your full name (at least 2 characters).";
+          errEl.style.display = "flex";
+        }
+        return;
+      }
+      if (!email || !email.includes("@") || !email.includes(".")) {
+        if (errEl) {
+          errEl.textContent = "Please provide a valid email address (e.g., name@gmail.com).";
+          errEl.style.display = "flex";
+        }
+        return;
+      }
       if (password.length < 8) {
         if (errEl) {
           errEl.textContent = "Password must be at least 8 characters long.";
@@ -5876,15 +5961,25 @@
       if (submitText) submitText.textContent = "Creating Account...";
 
       try {
+        const token = localStorage.getItem("interviewace_auth_token") || "";
         const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
           credentials: "include",
           body: JSON.stringify({ name, email, password, branch, year })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.success) {
           throw new Error(data.error || "Registration failed. An account with this email may already exist.");
+        }
+
+        if (data.token) {
+          try {
+            localStorage.setItem("interviewace_auth_token", data.token);
+          } catch (_) {}
         }
 
         state.currentUser = data.user;
@@ -5901,8 +5996,13 @@
         renderProfilePage();
         updateNavbarAvatar();
       } catch (err) {
+        console.error("Signup error:", err);
         if (errEl) {
-          errEl.textContent = err.message || "Failed to create account.";
+          let msg = err.message || "Failed to create account.";
+          if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+            msg = "Cannot connect to server. Please ensure the backend is running at http://localhost:5000.";
+          }
+          errEl.textContent = msg;
           errEl.style.display = "flex";
         }
       } finally {
@@ -5916,12 +6016,20 @@
      */
     async function handleLogout() {
       try {
+        const token = localStorage.getItem("interviewace_auth_token") || "";
         await fetch(`${API_BASE}/api/auth/logout`, {
           method: "POST",
+          headers: {
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
           credentials: "include"
         });
       } catch (e) {
         console.warn("Logout error:", e);
+      } finally {
+        try {
+          localStorage.removeItem("interviewace_auth_token");
+        } catch (_) {}
       }
       state.currentUser = null;
       closeUserDropdown();

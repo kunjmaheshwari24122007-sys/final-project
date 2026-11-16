@@ -14,11 +14,13 @@ const {
   optionalAuth
 } = require("../middleware/auth");
 
-// Zod Validation Schemas
+// Zod Validation Schemas - Accepts ANY valid worldwide email (Gmail, Yahoo, Outlook, custom domains, etc.)
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters long").max(60, "Name cannot exceed 60 characters"),
-  email: z.string().trim().email("Please provide a valid email address").toLowerCase(),
-  password: z.string().min(8, "Password must be at least 8 characters long").max(100, "Password too long")
+  email: z.string().trim().email("Please provide a valid email address (e.g., name@gmail.com)").toLowerCase(),
+  password: z.string().min(8, "Password must be at least 8 characters long").max(100, "Password too long"),
+  branch: z.string().optional().default(""),
+  year: z.string().optional().default("1st Year")
 });
 
 const loginSchema = z.object({
@@ -35,15 +37,16 @@ router.post("/register", async (req, res, next) => {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
       const errorMsg = parseResult.error.issues.map(e => e.message).join(". ");
-      return res.status(400).json({ error: errorMsg });
+      return res.status(400).json({ success: false, error: errorMsg });
     }
 
-    const { name, email, password } = parseResult.data;
+    const { name, email, password, branch, year } = parseResult.data;
 
     // Duplicate email check
     const existing = await db.getUserByEmail(email);
     if (existing) {
       return res.status(409).json({
+        success: false,
         error: "An account with this email address already exists. Please log in instead.",
         code: "EMAIL_ALREADY_EXISTS"
       });
@@ -51,7 +54,7 @@ router.post("/register", async (req, res, next) => {
 
     // Password hashing with bcrypt
     const passwordHash = await hashPassword(password);
-    const newUser = await db.createUser(name, email, passwordHash);
+    const newUser = await db.createUser(name, email, passwordHash, branch, year);
 
     // Create session
     const rawToken = generateSessionToken();
@@ -65,10 +68,13 @@ router.post("/register", async (req, res, next) => {
 
     res.status(201).json({
       success: true,
+      token: rawToken,
       user: {
         id: newUser.id,
         name: newUser.name,
-        email: newUser.email
+        email: newUser.email,
+        branch: newUser.branch,
+        year: newUser.year
       },
       message: "Account created successfully! Welcome to InterviewAce."
     });
@@ -86,7 +92,7 @@ router.post("/login", async (req, res, next) => {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
       const errorMsg = parseResult.error.issues.map(e => e.message).join(". ");
-      return res.status(400).json({ error: errorMsg });
+      return res.status(400).json({ success: false, error: errorMsg });
     }
 
     const { email, password } = parseResult.data;
@@ -94,6 +100,7 @@ router.post("/login", async (req, res, next) => {
     const user = await db.getUserByEmail(email);
     if (!user) {
       return res.status(401).json({
+        success: false,
         error: "Invalid email or password. Please check your credentials.",
         code: "INVALID_CREDENTIALS"
       });
@@ -102,6 +109,7 @@ router.post("/login", async (req, res, next) => {
     const isValidPassword = await comparePassword(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({
+        success: false,
         error: "Invalid email or password. Please check your credentials.",
         code: "INVALID_CREDENTIALS"
       });
@@ -119,6 +127,7 @@ router.post("/login", async (req, res, next) => {
 
     res.json({
       success: true,
+      token: rawToken,
       user: {
         id: user.id,
         name: user.name,

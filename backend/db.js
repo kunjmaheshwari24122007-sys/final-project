@@ -180,7 +180,7 @@ class RelationalDatabase {
   }
 
   // --- USER AUTHENTICATION & MANAGEMENT ---
-  async createUser(name, email, passwordHash) {
+  async createUser(name, email, passwordHash, branch = "", year = "1st Year") {
     const id = "usr_" + crypto.randomUUID();
     const now = new Date().toISOString();
     const cleanEmail = email.toLowerCase().trim();
@@ -193,12 +193,12 @@ class RelationalDatabase {
 
     // Create default profile for this user
     const insertProfile = this.db.prepare(`
-      INSERT INTO user_profiles (user_id, name, updated_at)
-      VALUES (?, ?, ?)
+      INSERT INTO user_profiles (user_id, name, branch, year, updated_at)
+      VALUES (?, ?, ?, ?, ?)
     `);
-    insertProfile.run(id, name.trim(), now);
+    insertProfile.run(id, name.trim(), branch || "Engineering", year || "1st Year", now);
 
-    return { id, name: name.trim(), email: cleanEmail, created_at: now };
+    return { id, name: name.trim(), email: cleanEmail, branch, year, created_at: now };
   }
 
   async getUserByEmail(email) {
