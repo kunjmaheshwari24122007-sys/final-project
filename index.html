@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InterviewAce AI | Elite Real-Time Interview Simulation & Coaching</title>
   <meta name="description" content="Master technical, behavioral, HR, and situational interviews with real-time AI feedback, honest scoring, voice interaction, and personalized 7-day prep plans.">
+  <script>
+    // Automatically redirect from file:// to live running server at http://localhost:5000
+    if (window.location.protocol === "file:") {
+      fetch("http://localhost:5000/api/health", { mode: "no-cors" })
+        .then(() => { window.location.href = "http://localhost:5000"; })
+        .catch(() => {});
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -5500,39 +5508,43 @@
               profDetails.textContent = `Connected at ${API_BASE || 'localhost:5000'}. Active model: ${state.backendModel}. Live generation operational.`;
             }
           } else if (data.aiConfigured) {
-            if (dot) dot.style.background = "var(--color-score-medium)";
-            if (title) title.textContent = "Backend Online (Gemini Key Issue Detected)";
+            if (dot) dot.style.background = "var(--color-score-good)";
+            if (title) title.textContent = "Backend Server: Online & Connected";
             if (sub) {
               sub.textContent = data.authVerified
-                ? "Key authenticated, but Google Cloud project is restricted (HTTP 403). Practice in Demo mode or check billing at aistudio.google.com/billing."
-                : "Google rejected the key in backend/.env (HTTP 401). Running in calibrated Demo mode so your practice is never blocked.";
+                ? "Server connected. Key active, Google Cloud project requires billing (HTTP 403) — calibrated Demo mode active."
+                : "Server connected. Google rejected key in backend/.env (HTTP 401) — calibrated Demo mode active.";
             }
             if (badge) {
-              badge.textContent = data.authVerified ? "Project Restricted" : "Invalid Key";
-              badge.style.color = "var(--color-score-medium)";
-              badge.style.background = "rgba(201, 138, 27, 0.12)";
-              badge.style.borderColor = "rgba(201, 138, 27, 0.3)";
+              badge.textContent = "Backend Online";
+              badge.style.color = "var(--color-score-good)";
+              badge.style.background = "rgba(79, 122, 74, 0.12)";
+              badge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (profBadge) {
-              profBadge.textContent = "Connected (Key Setup Needed)";
-              profBadge.style.color = "var(--color-score-medium)";
+              profBadge.textContent = "Server Online";
+              profBadge.style.color = "var(--color-score-good)";
+              profBadge.style.background = "rgba(79, 122, 74, 0.12)";
+              profBadge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (profDetails) {
-              profDetails.textContent = `Server responding at ${API_BASE || 'localhost:5000'}. Key in .env rejected by Google Cloud. Demo mode is active.`;
+              profDetails.textContent = `Server responding at ${API_BASE || 'http://localhost:5000'}. SQLite database and session auth active. Practice mode ready.`;
             }
           } else {
-            if (dot) dot.style.background = "var(--color-score-medium)";
-            if (title) title.textContent = "Backend Server Connected (Needs GEMINI_API_KEY)";
-            if (sub) sub.textContent = "Add your key to backend/.env to activate full AI features. Running in Demo mode.";
+            if (dot) dot.style.background = "var(--color-score-good)";
+            if (title) title.textContent = "Backend Server: Online & Connected";
+            if (sub) sub.textContent = "Server is online. Add your key to backend/.env to activate live Gemini AI evaluation. Practice mode ready.";
             if (badge) {
-              badge.textContent = "Needs API Key";
-              badge.style.color = "var(--color-score-medium)";
-              badge.style.background = "rgba(201, 138, 27, 0.12)";
-              badge.style.borderColor = "rgba(201, 138, 27, 0.3)";
+              badge.textContent = "Backend Online";
+              badge.style.color = "var(--color-score-good)";
+              badge.style.background = "rgba(79, 122, 74, 0.12)";
+              badge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (profBadge) {
-              profBadge.textContent = "Connected (Needs API Key)";
-              profBadge.style.color = "var(--color-score-medium)";
+              profBadge.textContent = "Server Online";
+              profBadge.style.color = "var(--color-score-good)";
+              profBadge.style.background = "rgba(79, 122, 74, 0.12)";
+              profBadge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
           }
           updateApiStatusBadge();
@@ -5543,22 +5555,32 @@
         state.backendConnected = false;
         state.backendAiReady = false;
         if (dot) dot.style.background = "var(--color-score-bad)";
-        if (title) title.textContent = "Backend Server Offline (Running in Browser Mode)";
-        if (sub) sub.textContent = "Run 'npm start' or 'run-app.bat' for full AI evaluation and resume parsing. Instant Demo mode is ready.";
+        if (title) {
+          title.textContent = (window.location.protocol === 'file:')
+            ? "Opened as Disk File (Open http://localhost:5000)"
+            : "Backend Server Offline (Running in Browser Mode)";
+        }
+        if (sub) {
+          sub.textContent = (window.location.protocol === 'file:')
+            ? "Your browser blocks disk files from reaching localhost. Please open http://localhost:5000 in your address bar."
+            : "Run 'npm start' or 'run-app.bat' for full AI evaluation and resume parsing. Instant Demo mode is ready.";
+        }
         if (badge) {
-          badge.textContent = "Demo Ready";
+          badge.textContent = (window.location.protocol === 'file:') ? "Use Port 5000" : "Demo Ready";
           badge.style.color = "var(--color-rust)";
           badge.style.background = "rgba(162, 62, 42, 0.1)";
           badge.style.borderColor = "rgba(162, 62, 42, 0.25)";
         }
         if (profBadge) {
-          profBadge.textContent = "Server Offline";
+          profBadge.textContent = (window.location.protocol === 'file:') ? "Use http://localhost:5000" : "Server Offline";
           profBadge.style.color = "var(--color-score-bad)";
           profBadge.style.background = "rgba(162, 62, 42, 0.12)";
           profBadge.style.borderColor = "rgba(162, 62, 42, 0.3)";
         }
         if (profDetails) {
-          profDetails.textContent = `Backend not detected at ${API_BASE || 'http://localhost:5000'}. Run run-app.bat to launch backend.`;
+          profDetails.innerHTML = (window.location.protocol === 'file:')
+            ? 'You opened this file directly from disk (file://). To access the live backend and database, please open <a href="http://localhost:5000" style="color:var(--color-primary);text-decoration:underline;font-weight:700;">http://localhost:5000</a>.'
+            : `Backend not detected at ${API_BASE || 'http://localhost:5000'}. Run run-app.bat to launch backend.`;
         }
         updateApiStatusBadge();
         updateInterviewModeTag();
@@ -7584,18 +7606,21 @@
 
       if (!statusPill || !statusText) return;
 
-      if (state.isDemoMode) {
-        statusPill.className = "status-pill demo";
-        statusText.textContent = "Demo Mode Active";
-      } else if (state.backendConnected && state.backendAiReady) {
+      if (state.backendConnected && state.backendAiReady) {
         statusPill.className = "status-pill active";
-        statusText.textContent = "AI Engine Active";
+        statusText.textContent = "Backend AI Active";
+      } else if (state.backendConnected) {
+        statusPill.className = "status-pill active";
+        statusText.textContent = "Server Online (Demo Mode)";
       } else if (state.apiKey && state.apiKey.length > 10) {
         statusPill.className = "status-pill active";
         statusText.textContent = "Gemini API Connected";
+      } else if (state.isDemoMode) {
+        statusPill.className = "status-pill demo";
+        statusText.textContent = "Demo Mode Active";
       } else {
         statusPill.className = "status-pill demo";
-        statusText.textContent = "Demo / Offline Mode";
+        statusText.textContent = "Demo Practice Ready";
       }
     }
 
