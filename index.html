@@ -7227,24 +7227,23 @@
       if (!resultBox) return;
 
       if (testBtn) testBtn.disabled = true;
-      resultBox.textContent = "Connecting to backend server...";
+      resultBox.textContent = "Connecting to backend server & verifying Gemini API key...";
       resultBox.style.color = "var(--color-rust)";
       resultBox.style.background = "var(--bg-surface-alt)";
       resultBox.style.display = "block";
 
       try {
         const startTime = performance.now();
-        const res = await fetch(`${API_BASE}/api/config-status`, { signal: AbortSignal.timeout(6000) });
+        const testRes = await fetch(`${API_BASE}/api/interview/test-connection`, { signal: AbortSignal.timeout(10000) });
         const latency = Math.round(performance.now() - startTime);
 
-        if (res.ok) {
-          const data = await res.json();
-          state.backendConnected = true;
-          state.backendAiReady = !!data.aiConfigured;
-          state.backendModel = data.currentModel || "gemini-2.5-flash";
-
-          if (data.aiConfigured) {
-            resultBox.textContent = `✓ Backend Online (${latency}ms) - AI Engine active using ${data.currentModel}. Database: ${data.database || 'SQLite'}. Zero client API key exposure.`;
+        if (testRes.ok) {
+          const testData = await testRes.json();
+          if (testData.verified) {
+            state.backendConnected = true;
+            state.backendAiReady = true;
+            state.backendModel = testData.model || "gemini-2.5-flash";
+            resultBox.innerHTML = `✓ <strong>Backend & Gemini Verified (${latency}ms)</strong><br>Active Model: ${escapeHtml(testData.model)}. Google Generative Language API is responding normally. Zero client key exposure.`;
             resultBox.style.color = "var(--color-score-good)";
             if (badge) {
               badge.textContent = "Connected (AI Engine Active)";
@@ -7253,21 +7252,26 @@
               badge.style.borderColor = "rgba(79, 122, 74, 0.3)";
             }
             if (details) {
-              details.textContent = `Server responding at ${API_BASE || 'localhost:5000'}. Model: ${data.currentModel}. Zero client key exposure.`;
+              details.textContent = `Server responding at ${API_BASE || 'localhost:5000'}. Model: ${testData.model}. Key verified operational.`;
             }
           } else {
-            resultBox.textContent = `✓ Backend Online (${latency}ms) - Note: GEMINI_API_KEY is not set in backend/.env. Add key to .env for AI mode.`;
+            state.backendConnected = true;
+            state.backendAiReady = false;
+            resultBox.innerHTML = `⚠️ <strong>Server Connected, but Gemini Key was rejected:</strong><br>${escapeHtml(testData.error || 'Invalid API Key')}<br><span style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;display:block;">Tip: Google AI Studio developer keys start with <code>AIzaSy...</code>. Update <code>GEMINI_API_KEY</code> in <code>backend/.env</code>. Instant Demo Mode is active.</span>`;
             resultBox.style.color = "var(--color-score-medium)";
             if (badge) {
-              badge.textContent = "Connected (Needs API Key)";
+              badge.textContent = "Connected (Invalid Key)";
               badge.style.background = "rgba(201, 138, 27, 0.12)";
               badge.style.color = "var(--color-score-medium)";
+            }
+            if (details) {
+              details.textContent = `Backend online, but Google Generative AI rejected the key. Fallback to Instant Demo mode active.`;
             }
           }
           updateApiStatusBadge();
           updateInterviewModeTag();
         } else {
-          throw new Error(`Server returned status ${res.status}`);
+          throw new Error(`Server returned status ${testRes.status}`);
         }
       } catch (err) {
         state.backendConnected = false;
@@ -7520,7 +7524,8 @@
 
       document.getElementById("demoModeToggle").addEventListener("change", (e) => {
         state.forceDemo = false;
-        state.isDemoMode = e.target.checked || !state.apiKey;
+        const hasAi = (state.backendConnected && state.backendAiReady) || (state.apiKey && state.apiKey.length > 10);
+        state.isDemoMode = e.target.checked || !hasAi;
         state.previousDemoToggleState = null;
         updateApiStatusBadge();
         updateInterviewModeTag();

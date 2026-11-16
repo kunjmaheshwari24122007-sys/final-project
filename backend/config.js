@@ -1,5 +1,16 @@
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+const fs = require("fs");
+const dotenv = require("dotenv");
+
+// Load .env from backend directory first, then root directory if present
+const backendEnvPath = path.join(__dirname, ".env");
+if (fs.existsSync(backendEnvPath)) {
+  dotenv.config({ path: backendEnvPath });
+}
+const rootEnvPath = path.join(__dirname, "..", ".env");
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+}
 
 const config = {
   port: parseInt(process.env.PORT, 10) || 5000,

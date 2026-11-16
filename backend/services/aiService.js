@@ -378,9 +378,22 @@ Return ONLY a valid JSON object matching this schema:
   return ReportSchema.parse(rawResult);
 }
 
+/**
+ * Test Gemini API connection with a lightweight ping
+ */
+async function testConnection() {
+  if (!config.geminiApiKey) {
+    throw new Error("GEMINI_API_KEY is not configured in backend/.env.");
+  }
+  const prompt = "Respond with JSON: {\"status\": \"ok\", \"verified\": true}";
+  const raw = await callGeminiRaw(prompt);
+  return { ok: true, model: activeModel, result: raw };
+}
+
 module.exports = {
   generateQuestion,
   evaluateAnswer,
   generateFinalReport,
+  testConnection,
   getActiveModel: () => activeModel
 };

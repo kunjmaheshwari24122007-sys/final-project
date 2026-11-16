@@ -47,6 +47,28 @@ router.post("/generate-report", aiLimiter, async (req, res, next) => {
 });
 
 /**
+ * GET /api/interview/test-connection
+ * Actively pings Gemini API to verify credentials without leaking keys
+ */
+router.get("/test-connection", async (req, res) => {
+  try {
+    const testResult = await aiService.testConnection();
+    res.json({
+      success: true,
+      verified: true,
+      model: testResult.model,
+      message: `Gemini API verified successfully using model ${testResult.model}.`
+    });
+  } catch (err) {
+    res.status(200).json({
+      success: false,
+      verified: false,
+      error: err.message
+    });
+  }
+});
+
+/**
  * POST /api/interview
  * Unified endpoint for backwards compatibility
  */
