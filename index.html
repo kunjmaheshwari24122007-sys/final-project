@@ -184,6 +184,20 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .nav-cta .btn {
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
+      white-space: nowrap;
     }
 
     .status-pill {
@@ -269,6 +283,7 @@
       transition: var(--transition-standard);
       user-select: none;
       position: relative;
+      white-space: nowrap;
     }
 
     .btn:active {
@@ -3407,9 +3422,9 @@
         </div>
 
         <!-- Auth Controls (Desktop): Logged Out -->
-        <div id="navAuthLoggedOut" style="display: flex; align-items: center; gap: 8px;">
-          <button type="button" class="btn btn-secondary btn-sm" id="navLoginBtn" onclick="openAuthModal('login')">Log In</button>
-          <button type="button" class="btn btn-primary btn-sm" id="navRegisterBtn" onclick="openAuthModal('register')">Sign Up</button>
+        <div id="navAuthLoggedOut" class="nav-cta">
+          <button type="button" class="btn btn-secondary" id="navLoginBtn" onclick="openAuthModal('login')">Log In</button>
+          <button type="button" class="btn btn-primary" id="navRegisterBtn" onclick="openAuthModal('register')">Sign Up</button>
         </div>
 
         <!-- Auth Controls (Desktop): Logged In Dropdown -->
